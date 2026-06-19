@@ -298,9 +298,9 @@ RATE_04_CATS = {
 # ── 3. Data Engine (Cloud Sheets Integration) ─────────────────────────────────
 COLUMNS = ["Application ID", "Date Received", "Applicant Name", "Plot Number",
            "Category", "Development Type", "Dimension/Qty", "Est. Cost (MK)", "Scrutiny Fee (MK)"] 
-
-def _calc_fee(category: str, rate_info: dict, qty: float) -> tuple[float, float]:
+def _calc_fee(category: str, rate_info: dict, qty: float, subcategory: str = "") -> tuple[float, float]:
     """Return (estimated_cost, scrutiny_fee) for any combination."""
+    # 1. Base Fee Calculations
     if category in RATE_04_CATS:
         est_cost = qty * rate_info["rate"]
         fee = est_cost * 0.004
@@ -310,8 +310,13 @@ def _calc_fee(category: str, rate_info: dict, qty: float) -> tuple[float, float]
     else:
         est_cost = 0.0
         fee = qty * rate_info["rate"]
+    # 2. Global Application Fee Pipeline
+    # Automatically add the baseline application fee to all items except the fee itself
+    if subcategory != "Application Fee":
+        # Pulls the fixed 15,000.00 MK application fee rate safely from the master dictionary
+        app_fee_baseline = BCC_RATES["Advertising"]["Application Fee"]["rate"]
+        fee += app_fee_baseline        
     return est_cost, fee
-
 # Integrated: Initialize cloud connection context
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -429,7 +434,7 @@ if page == "Scrutiny Fee Calculator":
                 input_val  = st.number_input("Quantity / Number of Items", min_value=1.0, value=1.0, step=1.0, key="calc_fixed_qty")
                 unit_label = "fixed rate fee" 
 
-    estimated_cost, scrutiny_fee_due = _calc_fee(category, item_details, input_val) 
+    estimated_cost, scrutiny_fee_due = _calc_fee(category, item_details, input_val,subcategory) 
 
     with col2:
         with st.container(border=True):
@@ -536,7 +541,7 @@ elif page == "New Application Intake":
             for e in errors:
                 st.error(f"❌ {e}")
         else:
-            calc_est_cost, calc_fee = _calc_fee(intake_category, rate_info, measure_val) 
+            calc_est_cost, calc_fee = _calc_fee(intake_category, rate_info, measure_val,intake_subcategory) 
 
             new_row = {
                 "Application ID":    app_id.strip().upper(),
