@@ -1,3 +1,28 @@
+# ── Global High-Contrast Mobile Typography Overrides ──────────────────────────
+st.markdown("""
+<style>
+    /* Force form subheaders, labels, and text markdown to remain high-contrast dark gray/black */
+    div[data-testid="stMarkdownContainer"] p, 
+    div[data-testid="stMarkdownContainer"] span,
+    .stSlider label, 
+    .stNumberInput label,
+    label[data-testid="stWidgetLabel"] p {
+        color: #1A202C !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Target radio button option text specifically (Area method, Trends grouping) */
+    div[data-testid="stRadio"] label div[data-testid="stMarkdownContainer"] p {
+        color: #1A202C !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Target section headings inside your forms */
+    h3 {
+        color: #1E65B5 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 import streamlit as st
 import pandas as pd
 import os
