@@ -212,13 +212,27 @@ div.stButton > button:hover {
 
 # ── Portal Header Band ────────────────────────────────────────────────────────
 st.markdown("""
-<div class="bcc-header">
-    <h1>🇲🇼 &nbsp;Blantyre City Council</h1>
-    <p class="subtitle">DEPARTMENT OF TOWN PLANNING AND ESTATES SERVICES</p>
-    <span class="badge">Charges Review Portal &nbsp;·&nbsp; Effective Rates</span>
+<div style="margin-bottom: 24px; padding: 10px 0;">
+    <h1 style="color: #FFFFFF !important; font-size: calc(1.5rem + 1vw) !important; font-weight: 700; margin: 0 0 6px 0; line-height: 1.2;">
+        🇲🇼 &nbsp;<span style="background-color: var(--navy); padding: 4px 12px; border-radius: 6px; display: inline-block;">Blantyre City Council</span>
+    </h1>
+    
+    <p style="margin: 0 0 8px 0; line-height: 1.4;">
+        <span style="background-color: var(--navy); color: #FFFFFF !important; font-weight: 700; font-size: calc(0.75rem + 0.2vw); letter-spacing: 0.05em; padding: 4px 10px; border-radius: 4px; display: inline-block;">
+            DEPARTMENT OF TOWN PLANNING AND ESTATES SERVICES
+        </span>
+    </p>
+    
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px;">
+        <span style="background: var(--gold); color: var(--navy); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 4px; padding: 3px 9px;">
+            Charges Review Portal &nbsp;·&nbsp; Effective Rates
+        </span>
+        <span style="background-color: #3A4557; color: #E8EDF5 !important; font-size: 0.7rem; font-weight: 500; font-style: italic; border-radius: 4px; padding: 3px 9px;">
+            Created by GIS Specialist Frank Chingoka
+        </span>
+    </div>
 </div>
-""", unsafe_allow_html=True) 
-
+""", unsafe_allow_html=True)
 # ── Authentication Gate Layer ─────────────────────────────────────────────────
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
@@ -356,7 +370,7 @@ if live_mode:
     refresh_rate = st.sidebar.slider("Refresh Interval (seconds)", 5, 60, 10)
 
 st.sidebar.markdown("---")
-st.sidebar.caption("Blantyre City Council · Town Planning Section Created by Frank Mwai Chingoka") 
+st.sidebar.caption("Blantyre City Council · Town Planning Section") 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MODULE 1 — SCRUTINY FEE CALCULATOR
