@@ -664,6 +664,7 @@ else:
 
             col1, col2 = st.columns([3, 2],gap="large")
             with col1:
+                
             fig_trend = px.bar(
             summary,
             x="Period", y="Submissions Count", color="Category",
