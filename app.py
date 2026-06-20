@@ -665,13 +665,13 @@ else:
             col1, col2 = st.columns([3, 2], gap="large")
 
             with col1:
-                fig_trend = px.bar(
-                    summary,
-                    x="Period", y="Submissions Count", color="Category",
-                    title=f"Submission Volume — {time_frame} View",
-                    barmode="stack",
-                    color_discrete_sequence=px.colors.qualitative.Slate,
-                )
+            fig_trend = px.bar(
+            summary,
+            x="Period", y="Submissions Count", color="Category",
+            title=f"Submission Volume — {time_frame} View",
+            barmode="stack",
+            color_discrete_sequence=["#1E65B5", "#C49A2A", "#3A4557", "#6B7A96", "#A8B8D0"], # Custom brand palette)
+                
                 fig_trend.update_layout(
                     font=dict(family="Source Sans Pro, sans-serif", color="#1A202C", size=12),
                     title_font=dict(size=14, color="#1B2A4A", weight="bold"),
@@ -706,14 +706,14 @@ else:
             with col2:
                 pie_data  = df_chart.groupby("Category").size().reset_index(name="Total Applications")
                 pie_data["Label"] = pie_data["Category"].str.replace(r"^\d+\.\s*", "", regex=True)
-                fig_share = px.pie(
-                    pie_data,
-                    names="Label",
-                    values="Total Applications",
-                    title="Share by Category",
-                    color_discrete_sequence=px.colors.qualitative.Slate,
-                    hole=0.38,
-                )
+            fig_share = px.pie(
+                pie_data,
+                names="Label",
+                values="Total Applications",
+                title="Share by Category",
+                color_discrete_sequence=["#1E65B5", "#C49A2A", "#3A4557", "#6B7A96", "#A8B8D0"], # Custom brand palette
+                hole=0.38,
+            )
                 fig_share.update_traces(
                     textposition="inside",
                     textinfo="percent+value",
