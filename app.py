@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ── Global High-Contrast Styling (Enhanced for Mobile + PC) ─────────────────
+# ── Global High-Contrast + Mobile Fixes ────────────────────────────────────
 st.markdown("""
 <style>
     /* High-contrast overrides */
@@ -38,10 +38,12 @@ st.markdown("""
         --muted: #6B7A96;
     }
     .stApp { background-color: var(--bg); }
+
+    /* Sidebar */
     [data-testid="stSidebar"] { background-color: var(--navy) !important; }
     [data-testid="stSidebar"] * { color: #E8EDF5 !important; }
 
-    /* Button fixes */
+    /* Buttons */
     div.stButton > button {
         background-color: var(--navy) !important;
         color: #FFFFFF !important;
@@ -52,32 +54,44 @@ st.markdown("""
     }
     div.stButton > button:hover {
         background-color: #243660 !important;
-        color: #FFFFFF !important;
     }
 
-    /* Login page button fix */
-    .stButton button[kind="primary"] {
-        background-color: var(--navy) !important;
-        color: white !important;
-    }
-
-    /* Selectbox, TextInput, NumberInput - ensure light background + dark text */
+    /* All inputs - FORCE WHITE BACKGROUND + BLACK TEXT */
     .stSelectbox > div > div, 
     .stTextInput > div > div,
-    .stNumberInput > div > div {
+    .stNumberInput > div > div,
+    .stDateInput > div > div,
+    textarea, input {
         background-color: #FFFFFF !important;
         color: #1A202C !important;
+        border: 1px solid #DDE3EE !important;
     }
-    .stSelectbox label, .stTextInput label, .stNumberInput label {
+    .stSelectbox label, .stTextInput label, .stNumberInput label, .stDateInput label {
         color: #1A202C !important;
     }
 
-    /* Sidebar radio buttons - light circles */
+    /* Radio buttons - white interior */
+    div[data-testid="stRadio"] label div[role="radiogroup"] > div {
+        background-color: #FFFFFF !important;
+        border: 2px solid #1A202C !important;
+    }
     [data-testid="stSidebar"] div[data-testid="stRadio"] label div[role="radiogroup"] > div {
         background-color: #FFFFFF !important;
     }
-    [data-testid="stSidebar"] .stRadio label {
-        color: #E8EDF5 !important;
+
+    /* Password eye icon */
+    input[type="password"] + div button {
+        color: #1A202C !important;
+    }
+
+    /* Tables & Dataframes */
+    [data-testid="stDataFrame"] {
+        background-color: #FFFFFF !important;
+        color: #1A202C !important;
+    }
+    [data-testid="stDataFrame"] th, [data-testid="stDataFrame"] td {
+        color: #1A202C !important;
+        background-color: #FFFFFF !important;
     }
 
     /* Original styling */
@@ -93,12 +107,6 @@ st.markdown("""
     .fee-result .fee-amount { color: #FFFFFF; font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; }
     .fee-result .fee-note { color: var(--gold); font-size: 0.78rem; margin-top: 6px; }
     .bcc-divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
-
-    /* Dataframe fixes for mobile */
-    [data-testid="stDataFrame"] {
-        background-color: #FFFFFF !important;
-        color: #1A202C !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -120,7 +128,7 @@ header_html = (
 )
 st.markdown(header_html, unsafe_allow_html=True)
 
-# ── Authentication Gate Layer (Secrets only) ─────────────────────────────────
+# ── Authentication (Secrets only) ───────────────────────────────────────────
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
@@ -214,8 +222,7 @@ def _calc_fee(category: str, rate_info: dict, qty: float, subcategory: str = "")
         est_cost = 0.0
         fee = qty * rate_info["rate"]
     if subcategory != "Application Fee":
-        app_fee_baseline = BCC_RATES["Advertising"]["Application Fee"]["rate"]
-        fee += app_fee_baseline
+        fee += BCC_RATES["Advertising"]["Application Fee"]["rate"]
     return est_cost, fee
 
 # ── Google Sheets Connection ───────────────────────────────────────────────
@@ -456,7 +463,7 @@ elif current_page == "intake":
             st.balloons()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MODULE 3 — SUBMISSION ANALYTICS (Mobile Optimized)
+# MODULE 3 — SUBMISSION ANALYTICS
 # ══════════════════════════════════════════════════════════════════════════════
 else:
     st.markdown("## 📊 SUBMISSION ANALYTICS")
@@ -538,6 +545,7 @@ else:
                 )
                 fig_share.update_traces(textposition="inside", textinfo="percent+value", textfont_size=14, textfont_color="#1A202C")
                 fig_share.update_layout(
+                    plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
                     font=dict(size=14, color="#1A202C"),
                     title_font=dict(size=20, color="#1B2A4A"),
                     legend=dict(orientation="h", yanchor="bottom", y=-0.25, font=dict(size=13, color="#1A202C"))
