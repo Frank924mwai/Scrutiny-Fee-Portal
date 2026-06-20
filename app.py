@@ -379,21 +379,33 @@ def load_data() -> pd.DataFrame:
 df_bcc = load_data() 
 
 # ── 4. Sidebar Navigation ─────────────────────────────────────────────────────
-st.sidebar.markdown("### 🏛 BCC Portal")
+# ── 4. Sidebar Navigation ─────────────────────────────────────────────────────
+st.sidebar.markdown("### 🏛 BCC PORTAL")
 st.sidebar.markdown("---")
-page = st.sidebar.radio("Navigate to:", ["🧮 Scrutiny Fee Calculator", "📥 New Application Intake", "📊 Submission Analytics"])
-page = page.split(" ", 1)[1]  
 
-# Dashboard control configurations to switch on automatic live refresh loops
+# 1. Clear mapping dictionary to separate UI labels from conditional keys
+PAGE_MAP = {
+    "🧮 Scrutiny Fee Calculator": "Scrutiny Fee Calculator",
+    "📥 New Application Intake": "New Application Intake",
+    "📊 Submission Analytics": "Submission Analytics"
+}
+
+# 2. Render the radio selector using the dictionary keys
+selected_label = st.sidebar.radio("Navigate to:", list(PAGE_MAP.keys()))
+
+# 3. Map to clean text string safely—bypassing unpredictable string splitting
+page = PAGE_MAP[selected_label]  
+
+# ── Dashboard Controls ────────────────────────────────────────────────────────
 st.sidebar.markdown("---")
-st.sidebar.markdown("### ⚙️ Dashboard Controls")
+st.sidebar.markdown("### ⚙️ DASHBOARD CONTROLS")
+
 live_mode = st.sidebar.toggle("🔄 Enable Real-Time Live View", value=False)
 if live_mode:
     refresh_rate = st.sidebar.slider("Refresh Interval (seconds)", 5, 60, 10)
 
 st.sidebar.markdown("---")
-st.sidebar.caption("Blantyre City Council · Town Planning Section") 
-
+st.sidebar.caption("Blantyre City Council · Town Planning Section")
 # ══════════════════════════════════════════════════════════════════════════════
 # MODULE 1 — SCRUTINY FEE CALCULATOR
 # ══════════════════════════════════════════════════════════════════════════════
