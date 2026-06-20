@@ -1,4 +1,3 @@
-
 import streamlit as st
 # ── Global High-Contrast Mobile Typography Overrides ──────────────────────────
 st.markdown("""
