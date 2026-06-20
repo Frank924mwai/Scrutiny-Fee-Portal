@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ── Global High-Contrast Styling ────────────────────────────────────────────
+# ── Global High-Contrast Styling (Enhanced for Mobile + PC) ─────────────────
 st.markdown("""
 <style>
     /* High-contrast overrides */
@@ -41,6 +41,45 @@ st.markdown("""
     [data-testid="stSidebar"] { background-color: var(--navy) !important; }
     [data-testid="stSidebar"] * { color: #E8EDF5 !important; }
 
+    /* Button fixes */
+    div.stButton > button {
+        background-color: var(--navy) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 10px 24px !important;
+        font-weight: 600 !important;
+    }
+    div.stButton > button:hover {
+        background-color: #243660 !important;
+        color: #FFFFFF !important;
+    }
+
+    /* Login page button fix */
+    .stButton button[kind="primary"] {
+        background-color: var(--navy) !important;
+        color: white !important;
+    }
+
+    /* Selectbox, TextInput, NumberInput - ensure light background + dark text */
+    .stSelectbox > div > div, 
+    .stTextInput > div > div,
+    .stNumberInput > div > div {
+        background-color: #FFFFFF !important;
+        color: #1A202C !important;
+    }
+    .stSelectbox label, .stTextInput label, .stNumberInput label {
+        color: #1A202C !important;
+    }
+
+    /* Sidebar radio buttons - light circles */
+    [data-testid="stSidebar"] div[data-testid="stRadio"] label div[role="radiogroup"] > div {
+        background-color: #FFFFFF !important;
+    }
+    [data-testid="stSidebar"] .stRadio label {
+        color: #E8EDF5 !important;
+    }
+
     /* Original styling */
     .bcc-header { background: var(--navy); border-radius: 10px; padding: 24px 32px 20px; margin-bottom: 28px; border-bottom: 3px solid var(--gold); }
     .bcc-header h1 { color: #FFFFFF; font-size: 1.75rem; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
@@ -54,6 +93,12 @@ st.markdown("""
     .fee-result .fee-amount { color: #FFFFFF; font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; }
     .fee-result .fee-note { color: var(--gold); font-size: 0.78rem; margin-top: 6px; }
     .bcc-divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+    /* Dataframe fixes for mobile */
+    [data-testid="stDataFrame"] {
+        background-color: #FFFFFF !important;
+        color: #1A202C !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -159,7 +204,6 @@ COLUMNS = ["Application ID", "Date Received", "Applicant Name", "Plot Number",
            "Category", "Development Type", "Dimension/Qty", "Est. Cost (MK)", "Scrutiny Fee (MK)"]
 
 def _calc_fee(category: str, rate_info: dict, qty: float, subcategory: str = "") -> tuple[float, float]:
-    """Return (estimated_cost, scrutiny_fee) for any combination."""
     if category in RATE_04_CATS:
         est_cost = qty * rate_info["rate"]
         fee = est_cost * 0.004
@@ -208,7 +252,7 @@ PAGE_MAP = {
 selected_label = st.sidebar.radio("Navigate to:", list(PAGE_MAP.keys()), key="sidebar_nav")
 current_page = PAGE_MAP[selected_label]
 
-# ── Page Change Handler (Fix ghost widgets) ────────────────────────────────
+# ── Page Change Handler ────────────────────────────────────────────────────
 if "prev_page" not in st.session_state:
     st.session_state.prev_page = current_page
 
@@ -475,12 +519,12 @@ else:
                 fig_trend.update_layout(
                     autosize=True,
                     plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-                    font=dict(size=14, color="#3A4557"),
+                    font=dict(size=14, color="#1A202C"),
                     title_font=dict(size=20, color="#1B2A4A"),
-                    legend=dict(orientation="h", yanchor="top", y=1.15, xanchor="center", x=0.5, font=dict(size=13)),
+                    legend=dict(orientation="h", yanchor="top", y=1.15, xanchor="center", x=0.5, font=dict(size=13, color="#1A202C")),
                     margin=dict(t=130, b=110, l=50, r=30),
-                    xaxis=dict(tickangle=-35, tickfont=dict(size=12), title="Period", title_font=dict(size=14)),
-                    yaxis=dict(tickfont=dict(size=13), title="Number of Submissions", title_font=dict(size=14), gridcolor="#EEF0F5")
+                    xaxis=dict(tickangle=-35, tickfont=dict(size=12, color="#1A202C"), title="Period", title_font=dict(size=14, color="#1A202C")),
+                    yaxis=dict(tickfont=dict(size=13, color="#1A202C"), title="Number of Submissions", title_font=dict(size=14, color="#1A202C"), gridcolor="#EEF0F5")
                 )
                 st.plotly_chart(fig_trend, use_container_width=True)
             
@@ -492,11 +536,11 @@ else:
                     title="Share by Category", hole=0.38, height=580,
                     color_discrete_sequence=px.colors.qualitative.Safe
                 )
-                fig_share.update_traces(textposition="inside", textinfo="percent+value", textfont_size=14)
+                fig_share.update_traces(textposition="inside", textinfo="percent+value", textfont_size=14, textfont_color="#1A202C")
                 fig_share.update_layout(
-                    font=dict(size=14, color="#3A4557"),
+                    font=dict(size=14, color="#1A202C"),
                     title_font=dict(size=20, color="#1B2A4A"),
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.25, font=dict(size=13))
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.25, font=dict(size=13, color="#1A202C"))
                 )
                 st.plotly_chart(fig_share, use_container_width=True)
             
