@@ -661,10 +661,8 @@ else:
                 df_chart["Period"] = df_chart["Date Received"].dt.to_period(period_map[time_frame]).astype(str)
 
             summary = df_chart.groupby(["Period", "Category"]).size().reset_index(name="Submissions Count")
-
             col1, col2 = st.columns([3, 2],gap="large")
             with col1:
-                
             fig_trend = px.bar(
             summary,
             x="Period", y="Submissions Count", color="Category",
