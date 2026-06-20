@@ -661,14 +661,17 @@ else:
                 df_chart["Period"] = df_chart["Date Received"].dt.to_period(period_map[time_frame]).astype(str)
 
             summary = df_chart.groupby(["Period", "Category"]).size().reset_index(name="Submissions Count")
-            col1, col2 = st.columns([3, 2],gap="large")
-            with col1:
-            fig_trend = px.bar(
-            summary,
-            x="Period", y="Submissions Count", color="Category",
-            title=f"Submission Volume — {time_frame} View",
-            barmode="stack",
-            color_discrete_sequence=["#1E65B5", "#C49A2A", "#3A4557", "#6B7A96", "#A8B8D0"], # Custom brand palette)
+col1, col2 = st.columns([3, 2], gap="large")
+with col1:
+    # Notice the 4 spaces/tab indentation below:
+    fig_trend = px.bar(
+        summary,
+        x="Period", y="Submissions Count", color="Category",
+        title=f"Submission Volume — {time_frame} View",
+        barmode="stack",
+        color_discrete_sequence=["#1E65B5", "#C49A2A", "#3A4557", "#6B7A96", "#A8B8D0"],
+    )
+    st.plotly_chart(fig_trend, use_container_width=True)
                 
                 fig_trend.update_layout(
                     font=dict(family="Source Sans Pro, sans-serif", color="#1A202C", size=12),
