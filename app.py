@@ -7,7 +7,7 @@ import time
 from streamlit_gsheets import GSheetsConnection
 
 # ── Page Configuration ─────────────────────────────────────────────────────
-st.set_page_config(
+st.set_set_page_config(
     page_title="BCC Town Planning Fees Portal",
     page_icon="city.png",
     layout="wide"
@@ -142,19 +142,19 @@ if not st.session_state["authenticated"]:
                     correct_password = None
                 if correct_password and password_input == correct_password:
                     st.session_state["authenticated"] = True
-                    st.session_state.prev_page = "calculator"  # Initialize correctly
+                    st.session_state.prev_page = "calculator"
                     st.rerun()
                 else:
                     st.error("❌ Invalid access token. Please verify credentials and re-enter.")
     st.stop()
 
-# ── Master Data ────────────────────────────────────────────────────────────
+# ── Master Data (Synchronized with Official "BCC SCRUTINY FEES.pdf") ────────
 BCC_RATES = {
     "Residential": {
         "High Density": {"rate": 170_000.00, "unit": "sqm"},
         "Medium Density": {"rate": 190_000.00, "unit": "sqm"},
         "Low Density": {"rate": 220_000.00, "unit": "sqm"},
-        "Multi- Units (Medium and Low)":{"rate": 350_000.00, "unit": "sqm"},
+        "Multi- Units (Medium and Low)": {"rate": 350_000.00, "unit": "sqm"},
     },
     "Institutional": {
         "Churches, Mosques and Schools": {"rate": 420_000.00, "unit": "sqm"},
@@ -174,8 +174,7 @@ BCC_RATES = {
     },
     "Advertising": {
         "Application Fee": {"rate": 15_000.00, "unit": "fixed_fee"},
-        "Billboard Prime Areas": {"rate": 1_000_000.00, "unit": "fixed_fee"},
-        "Billboard Other Areas": {"rate": 750_000.00, "unit": "fixed_fee"},
+        "Billboard": {"rate": 750_000.00, "unit": "fixed_fee"},
         "Single Sided Signpost": {"rate": 125_000.00, "unit": "fixed_fee"},
         "Double Sided Signpost": {"rate": 190_000.00, "unit": "fixed_fee"},
         "Composite Signpost": {"rate": 500_000.00, "unit": "fixed_fee"},
@@ -192,7 +191,8 @@ BCC_RATES = {
         "Sewer Application Fees": {"rate": 100_000.00, "unit": "fixed_fee"},
         "Certificate of Occupancy": {"rate": 0.001, "unit": "percentage_of_final_cost"},
         "LPG Exchange Cage": {"rate": 150_000.00, "unit": "fixed_fee"},
-        "LPG Exchange & Filler Cage": {"rate": 250_000.00, "unit": "fixed_fee"},
+        "LPG Exchange & Filler Cage": {"rate": 200_000.00, "unit": "fixed_fee"},
+        "Site Plan Certification": {"rate": 15_000.00, "unit": "fixed_fee"},
         "Kiosks for Mobile Money": {"rate": 190_000.00, "unit": "fixed_fee"},
     },
 }
@@ -202,7 +202,8 @@ RATE_04_CATS = {"Residential", "Institutional", "Industrial Development", "Offic
 COLUMNS = ["Application ID", "Date Received", "Applicant Name", "Plot Number",
            "Category", "Development Type", "Dimension/Qty", "Est. Cost (MK)", "Scrutiny Fee (MK)"]
 
-def _calc_fee(category: str, rate_info: dict, qty: float, subcategory: str = "") -> tuple[float, float]:
+def _calc_raw_base_fee(category: str, rate_info: dict, qty: float) -> tuple[float, float]:
+    """Calculates pure base scrutiny assessment before any chosen external bundled items."""
     if category in RATE_04_CATS:
         est_cost = qty * rate_info["rate"]
         fee = est_cost * 0.004
@@ -212,9 +213,6 @@ def _calc_fee(category: str, rate_info: dict, qty: float, subcategory: str = "")
     else:
         est_cost = 0.0
         fee = qty * rate_info["rate"]
-    
-    if subcategory != "Application Fee":
-        fee += BCC_RATES["Advertising"]["Application Fee"]["rate"]
     return est_cost, fee
 
 # ── Google Sheets Connection ───────────────────────────────────────────────
@@ -274,7 +272,7 @@ st.sidebar.markdown("---")
 st.sidebar.caption("Blantyre City Council · Town Planning Section")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MODULE 1 — SCRUTINY FEE CALCULATOR
+# MODULE 1 — SCRUTINY FEE CALCULATOR (WITH BUNDLED ADD-ONS SELECTION)
 # ══════════════════════════════════════════════════════════════════════════════
 if current_page == "calculator":
     st.markdown("## 🧮 SCRUTINY FEE CALCULATOR")
@@ -331,9 +329,33 @@ if current_page == "calculator":
             else:
                 input_val = st.number_input("Quantity / Number of Items", min_value=1.0, value=1.0, step=1.0, key="calc_fixed_qty")
 
-    # Calculation moved outside the column to ensure variable is always defined
-    estimated_cost, scrutiny_fee_due = _calc_fee(category, item_details, input_val, subcategory)
+        # Dynamic Add-on Fees Bundle Engine
+        with st.container(border=True):
+            st.markdown('<div class="card-title">📦 Combine Additional Fees (Optional)</div>', unsafe_allow_html=True)
+            st.markdown("<div style='font-size:0.80rem; color:#6B7A96; margin-bottom:12px;'>Select additional parameters to group into this evaluation quote:</div>", unsafe_allow_html=True)
+            
+            # Hide app fee selector if analyzing the application fee subcategory itself
+            show_app_checkbox = not (category == "Advertising" and subcategory == "Application Fee")
+            
+            calc_inc_app = st.checkbox("Include Base Application Fee (MK 15,000)", value=show_app_checkbox, disabled=not show_app_checkbox, key="calc_inc_app")
+            calc_inc_septic = st.checkbox("Include Septic Tank Fee (MK 40,000)", value=False, key="calc_inc_septic")
+            calc_inc_site_cert = st.checkbox("Include Site Plan Cert. (MK 15,000)", value=False, key="calc_inc_site")
+            calc_inc_parking = st.checkbox("Include Surface Car Parking (MK 280,000)", value=False, key="calc_inc_parking")
+            calc_inc_sewer = st.checkbox("Include Sewer Application Fee (MK 100,000)", value=False, key="calc_inc_sewer")
+
+    # Perform calculations based on selections
+    estimated_cost, base_scrutiny_fee = _calc_raw_base_fee(category, item_details, input_val)
     
+    # Add together chosen bundled elements
+    addon_accumulated = 0.0
+    if calc_inc_app and show_app_checkbox: addon_accumulated += BCC_RATES["Advertising"]["Application Fee"]["rate"][cite: 1]
+    if calc_inc_septic: addon_accumulated += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"][cite: 1]
+    if calc_inc_site_cert: addon_accumulated += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"][cite: 1]
+    if calc_inc_parking: addon_accumulated += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"][cite: 1]
+    if calc_inc_sewer: addon_accumulated += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"][cite: 1]
+    
+    scrutiny_fee_due = base_scrutiny_fee + addon_accumulated
+
     with col2:
         with st.container(border=True):
             st.markdown('<div class="card-title">Assessment Breakdown</div>', unsafe_allow_html=True)
@@ -352,44 +374,49 @@ if current_page == "calculator":
                     <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">
                         <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Base Rate</div>
                         <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">MK {base_rate:,.0f}</div>
-                        <div style="font-size:0.72rem;color:#6B7A96;">per m²</div>
+                        <div style="font-size:0.72rem;color:#6B7A96;">per unit</div>
                     </div>
                     <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">
                         <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Quantity</div>
                         <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">{input_val:,.2f}</div>
-                        <div style="font-size:0.72rem;color:#6B7A96;">sqm</div>
+                        <div style="font-size:0.72rem;color:#6B7A96;">{unit_type}</div>
                     </div>
                 </div>
                 <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;">
                     <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Estimated Development Cost</div>
                     <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>
                 </div>
-                <div class="fee-result">
-                    <div class="fee-label">Scrutiny Fee Due (0.4%)</div>
-                    <div class="fee-amount">MK {scrutiny_fee_due:,.2f}</div>
-                    <div class="fee-note">0.4% of estimated development cost + Application Fee</div>
-                </div>
-                """, unsafe_allow_html=True)
+                """)
             elif unit_type == "percentage_of_final_cost":
                 st.markdown(f"""
                 <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;">
                     <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Declared Final Cost</div>
                     <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>
                 </div>
-                <div class="fee-result">
-                    <div class="fee-label">Scrutiny Fee Due (0.1%)</div>
-                    <div class="fee-amount">MK {scrutiny_fee_due:,.2f}</div>
-                    <div class="fee-note">0.1% of declared final cost + Application Fee</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
+                """)
+
+            # Output isolated lines if add-on configurations are chosen
+            if addon_accumulated > 0:
                 st.markdown(f"""
-                <div class="fee-result">
-                    <div class="fee-label">Total Scrutiny Fee Due</div>
-                    <div class="fee-amount">MK {scrutiny_fee_due:,.2f}</div>
-                    <div class="fee-note">Fixed rate — {subcategory}</div>
+                <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Base Scrutiny Due</div>
+                        <div style="font-size:1.05rem;font-weight:700;color:#1B2A4A;">MK {base_scrutiny_fee:,.2f}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Combined Add-ons</div>
+                        <div style="font-size:1.05rem;font-weight:700;color:#2463EB;">+ MK {addon_accumulated:,.2f}</div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
+
+            st.markdown(f"""
+            <div class="fee-result">
+                <div class="fee-label">Total Invoice Amount Payable</div>
+                <div class="fee-amount">MK {scrutiny_fee_due:,.2f}</div>
+                <div class="fee-note">Reflects combined selections above as an inclusive invoice total.</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MODULE 2 — NEW APPLICATION INTAKE
@@ -415,8 +442,19 @@ elif current_page == "intake":
         st.markdown('<div class="card-title">Financial Metrics Input</div>', unsafe_allow_html=True)
         rate_info = BCC_RATES[intake_category][intake_subcategory]
         
-        # Swapped Area/Dimension input for Scrutiny Fee field
-        input_fee_paid = st.number_input("Paid Scrutiny Fee Amount (MK)", min_value=0.0, value=50_000.0, step=5000.0, key="intake_scrutiny_fee")
+        input_fee_paid = st.number_input("Total Amount Received on Receipt (MK)", min_value=0.0, value=50_000.0, step=5000.0, key="intake_scrutiny_fee")
+        
+        # Smart Un-Bundling Sub-Section for Planners
+        st.markdown("<div style='font-size:0.80rem; color:#6B7A96; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-top:15px; margin-bottom:5px;'>Check items included in this receipt total:</div>", unsafe_allow_html=True)
+        bundle_col1, bundle_col2, bundle_col3 = st.columns(3)
+        with bundle_col1:
+            inc_app_fee = st.checkbox("Base Application Fee (MK 15,000)", value=True, key="intake_inc_app")
+            inc_site_cert = st.checkbox("Site Plan Cert. (MK 15,000)", value=False, key="intake_inc_site")
+        with bundle_col2:
+            inc_septic = st.checkbox("Septic Tank Installation (MK 40,000)", value=False, key="intake_inc_septic")
+            inc_sewer = st.checkbox("Sewer Application Fee (MK 100,000)", value=False, key="intake_inc_sewer")
+        with bundle_col3:
+            inc_parking = st.checkbox("Surface Car Parking (MK 280,000)", value=False, key="intake_inc_parking")
    
     st.markdown("<br>", unsafe_allow_html=True)
     submit_btn = st.button("📄 Append Entry to Registry", use_container_width=True)
@@ -430,23 +468,26 @@ elif current_page == "intake":
             for e in errors:
                 st.error(f"❌ {e}")
         else:
-            app_fee_rate = BCC_RATES["Advertising"]["Application Fee"]["rate"]
+            # Dynamically compile bundle deductions based on checkboxes selected
+            deductions = 0.0
+            if inc_app_fee: deductions += BCC_RATES["Advertising"]["Application Fee"]["rate"][cite: 1]
+            if inc_septic: deductions += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"][cite: 1]
+            if inc_site_cert: deductions += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"][cite: 1]
+            if inc_parking: deductions += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"][cite: 1]
+            if inc_sewer: deductions += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"][cite: 1]
+
+            calc_fee = input_fee_paid
             
-            # Back-calculate estimated development cost or baseline metrics depending on the category
             if intake_category in RATE_04_CATS:
-                calc_fee = input_fee_paid
-                # Deduct baseline app fee if applicable, then derive cost from the 0.4% baseline rate
-                net_fee = max(0.0, calc_fee - app_fee_rate) if intake_subcategory != "Application Fee" else calc_fee
-                calc_est_cost = net_fee / 0.004
-                # Dimensions are computed backward for tracking consistency
+                # Isolate pure scrutiny amount prior to performing the 0.4% inverse math
+                net_scrutiny_fee = max(0.0, calc_fee - deductions)
+                calc_est_cost = net_scrutiny_fee / 0.004[cite: 1]
                 derived_dimension = calc_est_cost / rate_info["rate"] if rate_info["rate"] > 0 else 0.0
             elif rate_info["unit"] == "percentage_of_final_cost":
-                calc_fee = input_fee_paid
-                net_fee = max(0.0, calc_fee - app_fee_rate)
-                calc_est_cost = net_fee / rate_info["rate"]
+                net_scrutiny_fee = max(0.0, calc_fee - deductions)
+                calc_est_cost = net_scrutiny_fee / rate_info["rate"]
                 derived_dimension = calc_est_cost
             else:
-                calc_fee = input_fee_paid
                 calc_est_cost = 0.0
                 derived_dimension = calc_fee / rate_info["rate"] if rate_info["rate"] > 0 else 1.0
 
