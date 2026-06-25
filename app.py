@@ -107,17 +107,17 @@ st.markdown("""
 # ── Portal Header Band ────────────────────────────────────────────────────────
 header_html = (
     '<div style="background-color: #1E65B5; border-radius: 8px; border-bottom: 4px solid #C49A2A; padding: 22px 26px; margin-bottom: 28px; width: 100%; box-sizing: border-box;">'
-    ' <p style="margin: 0 0 14px 0; color: #FFFFFF !important; font-weight: 700; font-size: 1.25rem; letter-spacing: 0.04em; line-height: 1.3; text-transform: uppercase;">'
-    ' Department of Town Planning and Estates Services'
-    ' </p>'
-    ' <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">'
-    ' <span style="background-color: #C49A2A; color: #1E65B5; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px; padding: 5px 12px; display: inline-block;">'
-    ' Charges Review Portal &nbsp;·&nbsp; Effective Rates'
-    ' </span>'
-    ' <span style="color: #FFFFFF !important; font-size: 0.8rem; font-weight: 500; font-style: italic; display: inline-block; letter-spacing: 0.02em;">'
-    ' Created by GIS Specialist Frank Chingoka'
-    ' </span>'
-    ' </div >'
+    '  <p style="margin: 0 0 14px 0; color: #FFFFFF !important; font-weight: 700; font-size: 1.25rem; letter-spacing: 0.04em; line-height: 1.3; text-transform: uppercase;">'
+    '    Department of Town Planning and Estates Services'
+    '  </p>'
+    '  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">'
+    '    <span style="background-color: #C49A2A; color: #1E65B5; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px; padding: 5px 12px; display: inline-block;">'
+    '      Charges Review Portal &nbsp;·&nbsp; Effective Rates'
+    '    </span>'
+    '    <span style="color: #FFFFFF !important; font-size: 0.8rem; font-weight: 500; font-style: italic; display: inline-block; letter-spacing: 0.02em;">'
+    '      Created by GIS Specialist Frank Chingoka'
+    '    </span>'
+    '  </div >'
     '</div>'
 )
 st.markdown(header_html, unsafe_allow_html=True)
@@ -279,7 +279,7 @@ if current_page == "calculator":
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     
     col1, col2 = st.columns([1, 1], gap="large")
-   
+    
     with col1:
         with st.container(border=True):
             st.markdown('<div class="card-title">Development Parameters</div>', unsafe_allow_html=True)
@@ -339,7 +339,7 @@ if current_page == "calculator":
             
             calc_inc_app = st.checkbox("Include Base Application Fee (MK 15,000)", value=show_app_checkbox, disabled=not show_app_checkbox, key="calc_inc_app")
             calc_inc_septic = st.checkbox("Include Septic Tank Fee (MK 40,000)", value=False, key="calc_inc_septic")
-            calc_inc_site_cert = st.checkbox("Include Site Plan Cert. (MK 15,000)", value=False, key="calc_inc_site")
+            calc_inc_site = st.checkbox("Include Site Plan Cert. (MK 15,000)", value=False, key="calc_inc_site")
             calc_inc_parking = st.checkbox("Include Surface Car Parking (MK 280,000)", value=False, key="calc_inc_parking")
             calc_inc_sewer = st.checkbox("Include Sewer Application Fee (MK 100,000)", value=False, key="calc_inc_sewer")
 
@@ -348,11 +348,11 @@ if current_page == "calculator":
     
     # Add together chosen bundled elements
     addon_accumulated = 0.0
-    if calc_inc_app and show_app_checkbox: addon_accumulated += BCC_RATES["Advertising"]["Application Fee"]["rate"][cite: 1]
-    if calc_inc_septic: addon_accumulated += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"][cite: 1]
-    if calc_inc_site_cert: addon_accumulated += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"][cite: 1]
-    if calc_inc_parking: addon_accumulated += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"][cite: 1]
-    if calc_inc_sewer: addon_accumulated += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"][cite: 1]
+    if calc_inc_app and show_app_checkbox: addon_accumulated += BCC_RATES["Advertising"]["Application Fee"]["rate"]
+    if calc_inc_septic: addon_accumulated += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
+    if calc_inc_site: addon_accumulated += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
+    if calc_inc_parking: addon_accumulated += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
+    if calc_inc_sewer: addon_accumulated += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
     
     scrutiny_fee_due = base_scrutiny_fee + addon_accumulated
 
@@ -418,9 +418,7 @@ if current_page == "calculator":
             </div>
             """, unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# MODULE 2 — NEW APPLICATION INTAKE
-# ══════════════════════════════════════════════════════════════════════════════
+# ─── MODULE 2 — NEW APPLICATION INTAKE ───────────────────────────────────────
 elif current_page == "intake":
     st.markdown("## 📥 NEW APPLICATION INTAKE")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
@@ -435,9 +433,9 @@ elif current_page == "intake":
         plot_number = st.text_input("Plot Number / Parcel ID", placeholder="e.g., Plot BC 24", key="intake_plot")
         intake_category = st.selectbox("Plan Category", list(BCC_RATES.keys()), key="intake_cat")
         intake_subcategory = st.selectbox("Development Type", list(BCC_RATES[intake_category].keys()), key="intake_sub")
-   
+    
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-   
+    
     with st.container(border=True):
         st.markdown('<div class="card-title">Financial Metrics Input</div>', unsafe_allow_html=True)
         rate_info = BCC_RATES[intake_category][intake_subcategory]
@@ -448,17 +446,17 @@ elif current_page == "intake":
         st.markdown("<div style='font-size:0.80rem; color:#6B7A96; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-top:15px; margin-bottom:5px;'>Check items included in this receipt total:</div>", unsafe_allow_html=True)
         bundle_col1, bundle_col2, bundle_col3 = st.columns(3)
         with bundle_col1:
-            inc_app_fee = st.checkbox("Base Application Fee (MK 15,000)", value=True, key="intake_inc_app")
-            inc_site_cert = st.checkbox("Site Plan Cert. (MK 15,000)", value=False, key="intake_inc_site")
+            intake_inc_app = st.checkbox("Base Application Fee (MK 15,000)", value=True, key="intake_inc_app")
+            intake_inc_site = st.checkbox("Site Plan Cert. (MK 15,000)", value=False, key="intake_inc_site")
         with bundle_col2:
-            inc_septic = st.checkbox("Septic Tank Installation (MK 40,000)", value=False, key="intake_inc_septic")
-            inc_sewer = st.checkbox("Sewer Application Fee (MK 100,000)", value=False, key="intake_inc_sewer")
+            intake_inc_septic = st.checkbox("Septic Tank Installation (MK 40,000)", value=False, key="intake_inc_septic")
+            intake_inc_sewer = st.checkbox("Sewer Application Fee (MK 100,000)", value=False, key="intake_inc_sewer")
         with bundle_col3:
-            inc_parking = st.checkbox("Surface Car Parking (MK 280,000)", value=False, key="intake_inc_parking")
-   
+            intake_inc_parking = st.checkbox("Surface Car Parking (MK 280,000)", value=False, key="intake_inc_parking")
+    
     st.markdown("<br>", unsafe_allow_html=True)
     submit_btn = st.button("📄 Append Entry to Registry", use_container_width=True)
-   
+    
     if submit_btn:
         errors = []
         if not app_id.strip(): errors.append("Application ID Reference Number is required.")
@@ -470,18 +468,18 @@ elif current_page == "intake":
         else:
             # Dynamically compile bundle deductions based on checkboxes selected
             deductions = 0.0
-            if inc_app_fee: deductions += BCC_RATES["Advertising"]["Application Fee"]["rate"][cite: 1]
-            if inc_septic: deductions += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"][cite: 1]
-            if inc_site_cert: deductions += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"][cite: 1]
-            if inc_parking: deductions += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"][cite: 1]
-            if inc_sewer: deductions += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"][cite: 1]
+            if intake_inc_app: deductions += BCC_RATES["Advertising"]["Application Fee"]["rate"]
+            if intake_inc_septic: deductions += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
+            if intake_inc_site: deductions += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
+            if intake_inc_parking: deductions += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
+            if intake_inc_sewer: deductions += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
 
             calc_fee = input_fee_paid
             
             if intake_category in RATE_04_CATS:
                 # Isolate pure scrutiny amount prior to performing the 0.4% inverse math
                 net_scrutiny_fee = max(0.0, calc_fee - deductions)
-                calc_est_cost = net_scrutiny_fee / 0.004[cite: 1]
+                calc_est_cost = net_scrutiny_fee / 0.004
                 derived_dimension = calc_est_cost / rate_info["rate"] if rate_info["rate"] > 0 else 0.0
             elif rate_info["unit"] == "percentage_of_final_cost":
                 net_scrutiny_fee = max(0.0, calc_fee - deductions)
