@@ -274,6 +274,9 @@ st.sidebar.caption("Blantyre City Council · Town Planning Section")
 # ══════════════════════════════════════════════════════════════════════════════
 # MODULE 1 — SCRUTINY FEE CALCULATOR (WITH BUNDLED ADD-ONS SELECTION)
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 1 — SCRUTINY FEE CALCULATOR (ADJUSTED FOR STANDALONE/SUPPLEMENTARY)
+# ══════════════════════════════════════════════════════════════════════════════
 if current_page == "calculator":
     st.markdown("## 🧮 SCRUTINY FEE CALCULATOR")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
@@ -282,7 +285,12 @@ if current_page == "calculator":
     
     with col1:
         with st.container(border=True):
-            st.markdown('<div class="card-title">Development Parameters</div>', unsafe_allow_html=True)
+            st.markdown('<div class="card-title">Submission Context</div>', unsafe_allow_html=True)
+            calc_mode = st.radio("Is this a standalone development or an addition to a larger project?", 
+                                ["Standalone Development", "Supplementary/Add-on"], 
+                                key="calc_mode")
+            
+            # Development Parameters
             category = st.selectbox("Plan Category", list(BCC_RATES.keys()), key="calc_cat")
             subcategory = st.selectbox("Development Type", list(BCC_RATES[category].keys()), key="calc_sub")
             item_details = BCC_RATES[category][subcategory]
@@ -290,66 +298,36 @@ if current_page == "calculator":
             unit_type = item_details["unit"]
             is_04 = category in RATE_04_CATS
             
+            # Input logic (same as before)
             if unit_type == "sqm":
-                st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-                st.markdown('<div class="card-title">📐 Area Determination Method</div>', unsafe_allow_html=True)
-                input_method = st.radio(
-                    "Entry format:",
-                    ["Enter Total Area Manually", "Calculate Using Geometric Shapes"],
-                    horizontal=True, key="calc_method"
-                )
-                if input_method == "Enter Total Area Manually":
-                    input_val = st.number_input("Total Built-up Area (Square Meters)", min_value=0.0, value=100.0, step=10.0, key="calc_man_sqm")
-                else:
-                    shape = st.selectbox("Select Shape Profile:", ["Rectangle", "Triangle", "Trapezium", "Circle", "Semicircle"], key="calc_shape")
-                    if shape == "Rectangle":
-                        length = st.number_input("Length (m)", min_value=0.0, value=20.0, step=1.0, key="calc_rect_l")
-                        width = st.number_input("Width (m)", min_value=0.0, value=15.0, step=1.0, key="calc_rect_w")
-                        input_val = length * width
-                    elif shape == "Triangle":
-                        base = st.number_input("Base Length (m)", min_value=0.0, value=15.0, step=1.0, key="calc_tri_b")
-                        height = st.number_input("Perpendicular Height (m)", min_value=0.0, value=10.0, step=1.0, key="calc_tri_h")
-                        input_val = 0.5 * base * height
-                    elif shape == "Trapezium":
-                        side_a = st.number_input("Parallel Side A Length (m)", min_value=0.0, value=12.0, step=1.0, key="calc_trap_a")
-                        side_b = st.number_input("Parallel Side B Length (m)", min_value=0.0, value=18.0, step=1.0, key="calc_trap_b")
-                        trap_height = st.number_input("Perpendicular Distance / Height (m)", min_value=0.0, value=8.0, step=1.0, key="calc_trap_h")
-                        input_val = 0.5 * (side_a + side_b) * trap_height
-                    elif shape == "Circle":
-                        radius = st.number_input("Radius (m)", min_value=0.0, value=7.0, step=0.5, key="calc_circ_r")
-                        input_val = math.pi * radius ** 2
-                    elif shape == "Semicircle":
-                        semi_radius = st.number_input("Radius (m)", min_value=0.0, value=7.0, step=0.5, key="calc_semi_r")
-                        input_val = 0.5 * math.pi * semi_radius ** 2
-                    st.metric(label="Calculated Spatial Footprint", value=f"{input_val:,.2f} sqm")
+                input_val = st.number_input("Total Built-up Area (sqm)", min_value=0.0, value=100.0, key="calc_man_sqm")
             elif unit_type == "linear_meters":
-                input_val = st.number_input("Total Fence Length (Meters)", min_value=0.0, value=50.0, step=5.0, key="calc_lin_m")
+                input_val = st.number_input("Total Length (m)", min_value=0.0, value=50.0, key="calc_lin_m")
             elif unit_type == "percentage_of_final_cost":
-                input_val = st.number_input("Declared Final Structural Cost (MK)", min_value=0.0, value=5_000_000.0, step=100_000.0, key="calc_pct_cost")
+                input_val = st.number_input("Declared Final Cost (MK)", min_value=0.0, value=5_000_000.0, key="calc_pct_cost")
             else:
-                input_val = st.number_input("Quantity / Number of Items", min_value=1.0, value=1.0, step=1.0, key="calc_fixed_qty")
+                input_val = st.number_input("Quantity", min_value=1.0, value=1.0, key="calc_fixed_qty")
 
-        # Dynamic Add-on Fees Bundle Engine
+        # Dynamic Add-on Fees (Only shown as add-ons if in Supplementary mode)
         with st.container(border=True):
-            st.markdown('<div class="card-title">📦 Combine Additional Fees (Optional)</div>', unsafe_allow_html=True)
-            st.markdown("<div style='font-size:0.80rem; color:#6B7A96; margin-bottom:12px;'>Select additional parameters to group into this evaluation quote:</div>", unsafe_allow_html=True)
+            st.markdown('<div class="card-title">📦 Additional Fees</div>', unsafe_allow_html=True)
             
-            # Hide app fee selector if analyzing the application fee subcategory itself
-            show_app_checkbox = not (category == "Advertising" and subcategory == "Application Fee")
+            # If Standalone, we focus on the primary. If Supplementary, we allow picking extra costs.
+            show_extras = (calc_mode == "Supplementary/Add-on")
             
-            calc_inc_app = st.checkbox("Include Base Application Fee (MK 15,000)", value=show_app_checkbox, disabled=not show_app_checkbox, key="calc_inc_app")
+            calc_inc_app = st.checkbox("Include Base Application Fee (MK 15,000)", value=show_extras, key="calc_inc_app")
             calc_inc_septic = st.checkbox("Include Septic Tank Fee (MK 40,000)", value=False, key="calc_inc_septic")
             calc_inc_site = st.checkbox("Include Site Plan Cert. (MK 15,000)", value=False, key="calc_inc_site")
             calc_inc_parking = st.checkbox("Include Surface Car Parking (MK 280,000)", value=False, key="calc_inc_parking")
             calc_inc_sewer = st.checkbox("Include Sewer Application Fee (MK 100,000)", value=False, key="calc_inc_sewer")
 
-    # Perform calculations based on selections
+    # Calculations
     estimated_cost, base_scrutiny_fee = _calc_raw_base_fee(category, item_details, input_val)
     
-    # Add together chosen bundled elements
+    # Logic: Only add extras if they aren't part of the main category selected
     addon_accumulated = 0.0
-    if calc_inc_app and show_app_checkbox: addon_accumulated += BCC_RATES["Advertising"]["Application Fee"]["rate"]
-    if calc_inc_septic: addon_accumulated += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
+    if calc_inc_app: addon_accumulated += BCC_RATES["Advertising"]["Application Fee"]["rate"]
+    if calc_inc_septic and (category != "Septic Tank"): addon_accumulated += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
     if calc_inc_site: addon_accumulated += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
     if calc_inc_parking: addon_accumulated += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
     if calc_inc_sewer: addon_accumulated += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
@@ -359,70 +337,19 @@ if current_page == "calculator":
     with col2:
         with st.container(border=True):
             st.markdown('<div class="card-title">Assessment Breakdown</div>', unsafe_allow_html=True)
+            st.markdown(f"**Context:** {calc_mode}")
             
-            # 1. Category & Development Type Context Card
-            st.markdown(f"""
-            <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:16px;border:1px solid #DDE3EE;">
-                <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Category</div>
-                <div style="font-size:0.95rem;color:#1B2A4A;font-weight:600;">{category}</div>
-                <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-top:10px;margin-bottom:4px;">Development Type</div>
-                <div style="font-size:0.95rem;color:#1B2A4A;font-weight:600;">{subcategory}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Base Metrics
+            st.markdown(f"**Primary:** {subcategory} ({category})")
+            st.markdown(f"**Base Fee:** MK {base_scrutiny_fee:,.2f}")
             
-            # 2. Base Rate Metrics Cards
-            if is_04:
-                card_html = (
-                    '<div style="display:flex;gap:12px;margin-bottom:12px;">'
-                    '    <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">'
-                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Base Rate</div>'
-                    f'       <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">MK {base_rate:,.0f}</div>'
-                    '        <div style="font-size:0.72rem;color:#6B7A96;">per unit</div>'
-                    '    </div>'
-                    '    <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">'
-                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Quantity</div>'
-                    f'       <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">{input_val:,.2f}</div>'
-                    f'       <div style="font-size:0.72rem;color:#6B7A96;">{unit_type}</div>'
-                    '    </div>'
-                    '</div>'
-                    '<div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;">'
-                    '    <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Estimated Development Cost</div>'
-                    f'   <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>'
-                    '</div>'
-                )
-                st.markdown(card_html, unsafe_allow_html=True)
-                
-            elif unit_type == "percentage_of_final_cost":
-                pct_html = (
-                    '<div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;">'
-                    '    <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Declared Final Cost</div>'
-                    f'   <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>'
-                    '</div>'
-                )
-                st.markdown(pct_html, unsafe_allow_html=True)
-
-            # 3. Intermediary Add-ons Row
             if addon_accumulated > 0:
-                addon_html = (
-                    '<div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE; display:flex; justify-content:space-between; align-items:center;">'
-                    '    <div>'
-                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Base Scrutiny Due</div>'
-                    f'       <div style="font-size:1.05rem;font-weight:700;color:#1B2A4A;">MK {base_scrutiny_fee:,.2f}</div>'
-                    '    </div>'
-                    '    <div style="text-align:right;">'
-                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Combined Add-ons</div>'
-                    f'       <div style="font-size:1.05rem;font-weight:700;color:#2463EB;">+ MK {addon_accumulated:,.2f}</div>'
-                    '    </div>'
-                    '</div>'
-                )
-                st.markdown(addon_html, unsafe_allow_html=True)
-
-            # 4. Final Unified Invoice Total Card
+                st.markdown(f"**Add-ons:** MK {addon_accumulated:,.2f}")
+            
             st.markdown(f"""
             <div class="fee-result">
                 <div class="fee-label">Total Invoice Amount Payable</div>
                 <div class="fee-amount">MK {scrutiny_fee_due:,.2f}</div>
-                <div class="fee-note">Reflects combined selections above as an inclusive invoice total.</div>
             </div>
             """, unsafe_allow_html=True)
 # ─── MODULE 2 — NEW APPLICATION INTAKE ───────────────────────────────────────
