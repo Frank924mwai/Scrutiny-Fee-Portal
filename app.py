@@ -460,7 +460,7 @@ elif current_page == "intake":
             intake_inc_sewer = st.checkbox("Sewer Application Fee (MK 100,000)", value=False, key="intake_inc_sewer")
         with bundle_col3:
             intake_inc_parking = st.checkbox("Surface Car Parking (MK 280,000)", value=False, key="intake_inc_parking")
-            intake_inc_fence = st.checkbox("Security Fence", value=False, key="intake_inc_fence")
+            
     st.markdown("<br>", unsafe_allow_html=True)
     submit_btn = st.button("📄 Append Entry to Registry", use_container_width=True)
     
