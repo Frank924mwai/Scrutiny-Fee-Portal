@@ -117,7 +117,7 @@ header_html = (
     ' <span style="color: #FFFFFF !important; font-size: 0.8rem; font-weight: 500; font-style: italic; display: inline-block; letter-spacing: 0.02em;">'
     ' Created by GIS Specialist Frank Chingoka'
     ' </span>'
-    ' </div>'
+    ' </div >'
     '</div>'
 )
 st.markdown(header_html, unsafe_allow_html=True)
@@ -133,7 +133,7 @@ if not st.session_state["authenticated"]:
             st.markdown("<h3 style='text-align: center; margin-top: 0; margin-bottom: 20px;'>Secure Registry Authentication</h3>", unsafe_allow_html=True)
             password_input = st.text_input("Internal Access Password", type="password", placeholder="••••••••")
             submit_auth = st.button("Verify Credentials", use_container_width=True)
-           
+            
             if submit_auth:
                 try:
                     correct_password = st.secrets["auth"]["password"]
@@ -142,6 +142,7 @@ if not st.session_state["authenticated"]:
                     correct_password = None
                 if correct_password and password_input == correct_password:
                     st.session_state["authenticated"] = True
+                    st.session_state.prev_page = "calculator"  # Initialize correctly
                     st.rerun()
                 else:
                     st.error("❌ Invalid access token. Please verify credentials and re-enter.")
@@ -192,6 +193,7 @@ BCC_RATES = {
         "Certificate of Occupancy": {"rate": 0.001, "unit": "percentage_of_final_cost"},
         "LPG Exchange Cage": {"rate": 150_000.00, "unit": "fixed_fee"},
         "LPG Exchange & Filler Cage": {"rate": 250_000.00, "unit": "fixed_fee"},
+        "Kiosks for Mobile Money": {"rate": 190_000.00, "unit": "fixed_fee"},
     },
 }
 
@@ -289,7 +291,7 @@ if current_page == "calculator":
             base_rate = item_details["rate"]
             unit_type = item_details["unit"]
             is_04 = category in RATE_04_CATS
-           
+            
             if unit_type == "sqm":
                 st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
                 st.markdown('<div class="card-title">📐 Area Determination Method</div>', unsafe_allow_html=True)
@@ -331,7 +333,7 @@ if current_page == "calculator":
 
     # Calculation moved outside the column to ensure variable is always defined
     estimated_cost, scrutiny_fee_due = _calc_fee(category, item_details, input_val, subcategory)
-   
+    
     with col2:
         with st.container(border=True):
             st.markdown('<div class="card-title">Assessment Breakdown</div>', unsafe_allow_html=True)
@@ -396,7 +398,7 @@ elif current_page == "intake":
     st.markdown("## 📥 NEW APPLICATION INTAKE")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     st.markdown("Complete the fields below to register a new plan submission to the BCC registry.")
-   
+    
     col1, col2 = st.columns(2, gap="large")
     with col1:
         app_id = st.text_input("Application / File ID", placeholder="e.g., BCC/TP/2026/250", key="intake_id")
@@ -410,16 +412,11 @@ elif current_page == "intake":
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
    
     with st.container(border=True):
-        st.markdown('<div class="card-title">Dimensional Metrics</div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">Financial Metrics Input</div>', unsafe_allow_html=True)
         rate_info = BCC_RATES[intake_category][intake_subcategory]
-        if rate_info["unit"] == "sqm":
-            measure_val = st.number_input("Total Built-up Area (sqm)", min_value=0.1, value=120.0, key="intake_sqm")
-        elif rate_info["unit"] == "linear_meters":
-            measure_val = st.number_input("Total Fence Length (meters)", min_value=0.1, value=40.0, key="intake_lin")
-        elif rate_info["unit"] == "percentage_of_final_cost":
-            measure_val = st.number_input("Declared Final Structural Cost (MK)", min_value=1.0, value=10_000_000.0, key="intake_cost")
-        else:
-            measure_val = st.number_input("Quantity / Count Item Total", min_value=1.0, value=1.0, step=1.0, key="intake_qty")
+        
+        # Swapped Area/Dimension input for Scrutiny Fee field
+        input_fee_paid = st.number_input("Paid Scrutiny Fee Amount (MK)", min_value=0.0, value=50_000.0, step=5000.0, key="intake_scrutiny_fee")
    
     st.markdown("<br>", unsafe_allow_html=True)
     submit_btn = st.button("📄 Append Entry to Registry", use_container_width=True)
@@ -433,7 +430,26 @@ elif current_page == "intake":
             for e in errors:
                 st.error(f"❌ {e}")
         else:
-            calc_est_cost, calc_fee = _calc_fee(intake_category, rate_info, measure_val, intake_subcategory)
+            app_fee_rate = BCC_RATES["Advertising"]["Application Fee"]["rate"]
+            
+            # Back-calculate estimated development cost or baseline metrics depending on the category
+            if intake_category in RATE_04_CATS:
+                calc_fee = input_fee_paid
+                # Deduct baseline app fee if applicable, then derive cost from the 0.4% baseline rate
+                net_fee = max(0.0, calc_fee - app_fee_rate) if intake_subcategory != "Application Fee" else calc_fee
+                calc_est_cost = net_fee / 0.004
+                # Dimensions are computed backward for tracking consistency
+                derived_dimension = calc_est_cost / rate_info["rate"] if rate_info["rate"] > 0 else 0.0
+            elif rate_info["unit"] == "percentage_of_final_cost":
+                calc_fee = input_fee_paid
+                net_fee = max(0.0, calc_fee - app_fee_rate)
+                calc_est_cost = net_fee / rate_info["rate"]
+                derived_dimension = calc_est_cost
+            else:
+                calc_fee = input_fee_paid
+                calc_est_cost = 0.0
+                derived_dimension = calc_fee / rate_info["rate"] if rate_info["rate"] > 0 else 1.0
+
             new_row = {
                 "Application ID": app_id.strip().upper(),
                 "Date Received": date_rcvd.strftime("%Y-%m-%d"),
@@ -441,8 +457,8 @@ elif current_page == "intake":
                 "Plot Number": plot_number.strip(),
                 "Category": intake_category,
                 "Development Type": intake_subcategory,
-                "Dimension/Qty": measure_val,
-                "Est. Cost (MK)": calc_est_cost,
+                "Dimension/Qty": round(derived_dimension, 2),
+                "Est. Cost (MK)": round(calc_est_cost, 2),
                 "Scrutiny Fee (MK)": calc_fee,
             }
             try:
@@ -454,7 +470,6 @@ elif current_page == "intake":
             st.cache_data.clear()
             st.success(f"✅ Record for **{applicant_name.strip()} ({plot_number.strip()})** appended securely to cloud index file.")
             st.balloons()
-
 # ══════════════════════════════════════════════════════════════════════════════
 # MODULE 3 — SUBMISSION ANALYTICS
 # ══════════════════════════════════════════════════════════════════════════════
