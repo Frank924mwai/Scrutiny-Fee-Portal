@@ -393,7 +393,7 @@ if current_page == "calculator":
                     <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Declared Final Cost</div>
                     <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>
                 </div>
-                """)
+                """, unsafe_allow_html=True)
 
             # Output isolated lines if add-on configurations are chosen
             if addon_accumulated > 0:
