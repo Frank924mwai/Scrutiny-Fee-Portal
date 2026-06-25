@@ -7,7 +7,7 @@ import time
 from streamlit_gsheets import GSheetsConnection
 
 # ── Page Configuration ─────────────────────────────────────────────────────
-st.set_set_page_config(
+st.set_page_config(
     page_title="BCC Town Planning Fees Portal",
     page_icon="city.png",
     layout="wide"
