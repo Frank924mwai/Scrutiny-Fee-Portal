@@ -360,7 +360,7 @@ if current_page == "calculator":
         with st.container(border=True):
             st.markdown('<div class="card-title">Assessment Breakdown</div>', unsafe_allow_html=True)
             
-            # Category & Development Type Card
+            # 1. Category & Development Type Context Card
             st.markdown(f"""
             <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:16px;border:1px solid #DDE3EE;">
                 <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Category</div>
@@ -370,7 +370,7 @@ if current_page == "calculator":
             </div>
             """, unsafe_allow_html=True)
             
-            # Base Metrics Cards
+            # 2. Base Rate Metrics Cards
             if is_04:
                 card_html = (
                     '<div style="display:flex;gap:12px;margin-bottom:12px;">'
@@ -401,7 +401,7 @@ if current_page == "calculator":
                 )
                 st.markdown(pct_html, unsafe_allow_html=True)
 
-            # Combined Add-ons Summary Row
+            # 3. Intermediary Add-ons Row (Shows ONLY if items are checked)
             if addon_accumulated > 0:
                 addon_html = (
                     '<div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE; display:flex; justify-content:space-between; align-items:center;">'
@@ -417,7 +417,7 @@ if current_page == "calculator":
                 )
                 st.markdown(addon_html, unsafe_allow_html=True)
 
-            # Invoice Total Card
+            # 4. Final Unified Invoice Total Card (Rendered Once at the bottom)
             st.markdown(f"""
             <div class="fee-result">
                 <div class="fee-label">Total Invoice Amount Payable</div>
@@ -425,7 +425,6 @@ if current_page == "calculator":
                 <div class="fee-note">Reflects combined selections above as an inclusive invoice total.</div>
             </div>
             """, unsafe_allow_html=True)
-
             # Output isolated lines if add-on configurations are chosen
             if addon_accumulated > 0:
                 st.markdown(f"""
