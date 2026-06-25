@@ -359,6 +359,8 @@ if current_page == "calculator":
     with col2:
         with st.container(border=True):
             st.markdown('<div class="card-title">Assessment Breakdown</div>', unsafe_allow_html=True)
+            
+            # Category & Development Type Card
             st.markdown(f"""
             <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:16px;border:1px solid #DDE3EE;">
                 <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Category</div>
@@ -368,32 +370,61 @@ if current_page == "calculator":
             </div>
             """, unsafe_allow_html=True)
             
+            # Base Metrics Cards
             if is_04:
-                st.markdown(f"""
-                <div style="display:flex;gap:12px;margin-bottom:12px;">
-                    <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">
-                        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Base Rate</div>
-                        <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">MK {base_rate:,.0f}</div>
-                        <div style="font-size:0.72rem;color:#6B7A96;">per unit</div>
-                    </div>
-                    <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">
-                        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Quantity</div>
-                        <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">{input_val:,.2f}</div>
-                        <div style="font-size:0.72rem;color:#6B7A96;">{unit_type}</div>
-                    </div>
-                </div>
-                <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;">
-                    <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Estimated Development Cost</div>
-                    <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>
-                </div>
-                """)
+                card_html = (
+                    '<div style="display:flex;gap:12px;margin-bottom:12px;">'
+                    '    <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">'
+                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Base Rate</div>'
+                    f'       <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">MK {base_rate:,.0f}</div>'
+                    '        <div style="font-size:0.72rem;color:#6B7A96;">per unit</div>'
+                    '    </div>'
+                    '    <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">'
+                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Quantity</div>'
+                    f'       <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">{input_val:,.2f}</div>'
+                    f'       <div style="font-size:0.72rem;color:#6B7A96;">{unit_type}</div>'
+                    '    </div>'
+                    '</div>'
+                    '<div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;">'
+                    '    <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Estimated Development Cost</div>'
+                    f'   <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>'
+                    '</div>'
+                )
+                st.markdown(card_html, unsafe_allow_html=True)
+                
             elif unit_type == "percentage_of_final_cost":
-                st.markdown(f"""
-                <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;">
-                    <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Declared Final Cost</div>
-                    <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                pct_html = (
+                    '<div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;">'
+                    '    <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Declared Final Cost</div>'
+                    f'   <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>'
+                    '</div>'
+                )
+                st.markdown(pct_html, unsafe_allow_html=True)
+
+            # Combined Add-ons Summary Row
+            if addon_accumulated > 0:
+                addon_html = (
+                    '<div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE; display:flex; justify-content:space-between; align-items:center;">'
+                    '    <div>'
+                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Base Scrutiny Due</div>'
+                    f'       <div style="font-size:1.05rem;font-weight:700;color:#1B2A4A;">MK {base_scrutiny_fee:,.2f}</div>'
+                    '    </div>'
+                    '    <div style="text-align:right;">'
+                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Combined Add-ons</div>'
+                    f'       <div style="font-size:1.05rem;font-weight:700;color:#2463EB;">+ MK {addon_accumulated:,.2f}</div>'
+                    '    </div>'
+                    '</div>'
+                )
+                st.markdown(addon_html, unsafe_allow_html=True)
+
+            # Invoice Total Card
+            st.markdown(f"""
+            <div class="fee-result">
+                <div class="fee-label">Total Invoice Amount Payable</div>
+                <div class="fee-amount">MK {scrutiny_fee_due:,.2f}</div>
+                <div class="fee-note">Reflects combined selections above as an inclusive invoice total.</div>
+            </div>
+            """, unsafe_allow_html=True)
 
             # Output isolated lines if add-on configurations are chosen
             if addon_accumulated > 0:
