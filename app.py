@@ -401,32 +401,7 @@ if current_page == "calculator":
                 )
                 st.markdown(pct_html, unsafe_allow_html=True)
 
-            # 3. Intermediary Add-ons Row (Shows ONLY if items are checked)
-            if addon_accumulated > 0:
-                addon_html = (
-                    '<div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE; display:flex; justify-content:space-between; align-items:center;">'
-                    '    <div>'
-                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Base Scrutiny Due</div>'
-                    f'       <div style="font-size:1.05rem;font-weight:700;color:#1B2A4A;">MK {base_scrutiny_fee:,.2f}</div>'
-                    '    </div>'
-                    '    <div style="text-align:right;">'
-                    '        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Combined Add-ons</div>'
-                    f'       <div style="font-size:1.05rem;font-weight:700;color:#2463EB;">+ MK {addon_accumulated:,.2f}</div>'
-                    '    </div>'
-                    '</div>'
-                )
-                st.markdown(addon_html, unsafe_allow_html=True)
-
-            # 4. Final Unified Invoice Total Card (Rendered Once at the bottom)
-            st.markdown(f"""
-            <div class="fee-result">
-                <div class="fee-label">Total Invoice Amount Payable</div>
-                <div class="fee-amount">MK {scrutiny_fee_due:,.2f}</div>
-                <div class="fee-note">Reflects combined selections above as an inclusive invoice total.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            # Output isolated lines if add-on configurations are chosen
-            # 3. Intermediary Add-ons Row (Shows ONLY if items are checked)
+            # 3. Intermediary Add-ons Row
             if addon_accumulated > 0:
                 addon_html = (
                     '<div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE; display:flex; justify-content:space-between; align-items:center;">'
