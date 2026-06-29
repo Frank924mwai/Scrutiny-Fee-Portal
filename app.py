@@ -750,7 +750,7 @@ elif current_page == "tracker":
                     "Surveying Executed",
                     "Development Charges Cleared",
                     "Legal Costs Cleared",
-                    "Final Signing by Director"
+                    "Final Signing by Director of Town Planning and Estates Services"
                 ]
             # --- NEW: Added the Plan Approval steps block ---
             elif track_type == "Plan Approval":
@@ -761,7 +761,7 @@ elif current_page == "tracker":
                     "Town Planning Committee Screening and Approval of Plans",
                     "Preparation of Grants Permissions",
                     "Stamping of the Approved plans",
-                    "Signing of the plans and grants permissions by the director of town planning and estates services"
+                    "Signing of the plans and grants permissions by the Director of Town Planning and Estates Services"
                 ]
             else:
                 steps = [
@@ -772,7 +772,7 @@ elif current_page == "tracker":
                     "Clearance Certificate Fee Paid",
                     "Change of Ownership Fee Paid",
                     "Tax Clearance (MRA) Obtained",
-                    "Signing by Director of Town Planning",
+                    "Signing by Director of Town Planning and Estates Services",
                     "Signing by Director of Financial Services",
                     "Initial CEO Signature",
                     "Document Preparation",
