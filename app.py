@@ -108,7 +108,7 @@ header_html = (
     '  </p>'
     '  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">'
     '    <span style="background-color: #C49A2A; color: #1E65B5; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px; padding: 5px 12px; display: inline-block;">'
-    '      Registry & Services Portal &nbsp;·&nbsp; Effective Rates'
+    '      Charges Review 2026/2027 &nbsp;·&nbsp; Effective Rates'
     '    </span>'
     '    <span style="color: #FFFFFF !important; font-size: 0.8rem; font-weight: 500; font-style: italic; display: inline-block; letter-spacing: 0.02em;">'
     '      Created by GIS Specialist Frank Chingoka'
