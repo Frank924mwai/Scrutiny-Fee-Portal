@@ -680,6 +680,28 @@ elif current_page == "analytics":
                 )
                 st.plotly_chart(fig_share, use_container_width=True, theme=None)
 
+            # ─── NEW: VOLUME MATRIX SECTION ──────────────────────────────────────────
+            st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
+            st.markdown("####  🧮  Volume Matrix (Category by Period)")
+            
+            # Create a pivot table showing Category rows and Period columns
+            matrix_df = pd.crosstab(df_chart["Category"], df_chart["Period"])
+            
+            # Add Row and Column Totals
+            matrix_df["Total"] = matrix_df.sum(axis=1)
+            matrix_df.loc["Grand Total"] = matrix_df.sum(axis=0)
+            
+            # Apply a heatmap background gradient to the data (excluding the Total column/row)
+            # The background gradient helps visually identify high-volume combinations instantly.
+            styled_matrix = matrix_df.style.background_gradient(
+                cmap="Blues", 
+                axis=None, 
+                subset=(matrix_df.index[:-1], matrix_df.columns[:-1])
+            ).format("{:,.0f}")
+            
+            st.dataframe(styled_matrix, use_container_width=True)
+            # ─────────────────────────────────────────────────────────────────────────
+
         st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
         st.markdown("####  📋  Application Registry")
         search_query = st.text_input("Search registry:", placeholder="Filter by Plot #, Applicant name, or File ID…", label_visibility="collapsed")
@@ -706,7 +728,6 @@ elif current_page == "analytics":
         }).format(format_dict)
 
         st.dataframe(styled_df, use_container_width=True)
-
 #  ══════════════════════════════════════════════════════════════════════════════
 # MODULE 4 — PROCESS TRACKING (DATABASE CONNECTED)
 #  ══════════════════════════════════════════════════════════════════════════════
