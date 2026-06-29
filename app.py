@@ -240,7 +240,7 @@ ESTATES_FEES = {
 
 RATE_04_CATS = {"Residential", "Institutional", "Industrial Development", "Office/Commercial Development", "Fences"}
 COLUMNS = ["Application ID", "Date Received", "Applicant Name", "Plot Number", "Department",
-           "Category", "Development Type", "Dimension/Qty", "Est. Cost (MK)", "Total Fee (MK)"]
+           "Category", "Development Type", "Dimension/Qty", "Est. Cost (MK)", "Total Fee (MK)", "Completed Steps"]
 
 def _calc_raw_base_fee(dept: str, category: str, rate_info: dict, qty: float, premium: float = 0.0) -> Tuple[float, float]:
     """Calculates pure base fee depending on Department and category types."""
@@ -702,61 +702,98 @@ elif current_page == "analytics":
         st.dataframe(styled_df, use_container_width=True)
 
 #  ══════════════════════════════════════════════════════════════════════════════
-# MODULE 4 — PROCESS TRACKING
+# MODULE 4 — PROCESS TRACKING (DATABASE CONNECTED)
 #  ══════════════════════════════════════════════════════════════════════════════
 elif current_page == "tracker":
     st.markdown("##  🛤️  PROCESS TRACKING")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    st.markdown("Monitor the progression of estate applications through their required operational phases.")
+    st.markdown("Search for an existing application to update its operational phase.")
 
-    track_type = st.radio("Select Workflow Process:", ["Lease Application", "Change of Ownership"], horizontal=True)
-    file_id = st.text_input("Enter File ID or Plot Number for reference (Optional):", placeholder="e.g., Plot BC 24")
+    search_query = st.text_input("🔍 Enter Application ID or Plot Number to load record:", placeholder="e.g., BCC/TP/2026/250 or Plot BC 24")
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f"### Standard Operating Procedure: {track_type}")
-    
-    if track_type == "Lease Application":
-        steps = [
-            ("Confirmation of Estate", "Verify if the plot falls within Traditional Housing Area (THA) or Medium Density Area."),
-            ("Confirmation of Details", "Confirm plot number and current owner specifics."),
-            ("City Rates Clearance", "Ensure all municipal rates are fully cleared."),
-            ("Lease Application Fee", "100,000 MK (THA) or 150,000 MK (Medium Density)."),
-            ("Application Form", "Client fills and submits the formal application form."),
-            ("Property Inspection", "Assessed to grant a 33-year or 66-year lease period."),
-            ("Surveying", "Execution of property survey and beacon verification."),
-            ("Development Charges", "150,000 MK per 0.036 Hectares for THA. (Medium density clients are exempt as paid during allocation)."),
-            ("Legal Costs", "150,000 MK paid uniformly regardless of density zone."),
-            ("Final Signing", "Signature by the Director of Town Planning and Estate Services.")
-        ]
-    else:
-        steps = [
-            ("Obtain Letter", "Procure Letter for Change of Ownership from site office OR Letters of Administration for Deceased Estate."),
-            ("Site Verification", "Site office verifies boundaries, developments, and involved parties."),
-            ("File Check", "Verification of documentation at Civic Offices."),
-            ("City Rates Clearance", "Ensure all municipal rates are fully cleared."),
-            ("Clearance Certificate Fee", "Payment of 100,000 MK fee."),
-            ("Change of Ownership Fee", "Private Sale: 200,000 MK. Next of Kin / Deceased: 120,000 MK."),
-            ("Tax Clearance", "Obtain Tax Clearance Certificate from Malawi Revenue Authority (MRA)."),
-            ("Town Planning Signature", "Signing of application by Director of Town Planning and Estates Services."),
-            ("Finance Signature", "Signing of application by the Director of Financial Services."),
-            ("CEO Signature (Initial)", "Signing of the application by the Chief Executive Officer."),
-            ("Document Preparation", "Preparation of Confirmation for Change of Ownership Documents."),
-            ("Final CEO Signature", "Final sign-off by the Chief Executive Officer.")
-        ]
+    if search_query.strip():
+        q = search_query.strip().lower()
+        
+        # Search the dataframe for an exact match
+        match_idx = df_bcc[
+            df_bcc["Application ID"].astype(str).str.lower().eq(q) |
+            df_bcc["Plot Number"].astype(str).str.lower().eq(q)
+        ].index
 
-    # Render visual interactive checklist
-    for i, (title, desc) in enumerate(steps, 1):
-        st.markdown(f"""
-        <div class="tracker-step">
-            <label style="display:flex; align-items:flex-start; cursor:pointer;">
-                <input type="checkbox" style="margin-top:4px; margin-right:12px; width:16px; height:16px; accent-color:#1E65B5;">
-                <div>
-                    <div class="tracker-title">Step {i}: {title}</div>
-                    <div class="tracker-desc">{desc}</div>
-                </div>
-            </label>
-        </div>
-        """, unsafe_allow_html=True)
+        if len(match_idx) == 0:
+            st.warning("⚠️ No matching record found in the registry. Please check the ID or Plot Number.")
+        else:
+            record_idx = match_idx[0]
+            record = df_bcc.loc[record_idx]
+            
+            st.success(f"✅ **Record Loaded:** {record['Applicant Name']} | **Plot:** {record['Plot Number']} | **Category:** {record['Category']}")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            track_type = st.radio("Select Workflow Process for this application:", ["Lease Application", "Change of Ownership"], horizontal=True)
+            
+            if track_type == "Lease Application":
+                steps = [
+                    "Confirmation of Estate",
+                    "Confirmation of Details",
+                    "City Rates Clearance",
+                    "Lease Application Fee Paid",
+                    "Application Form Submitted",
+                    "Property Inspection Completed",
+                    "Surveying Executed",
+                    "Development Charges Cleared",
+                    "Legal Costs Cleared",
+                    "Final Signing by Director"
+                ]
+            else:
+                steps = [
+                    "Obtain Letter (Site Office / Deceased Estate)",
+                    "Site Verification",
+                    "File Check at Civic Offices",
+                    "City Rates Clearance",
+                    "Clearance Certificate Fee Paid",
+                    "Change of Ownership Fee Paid",
+                    "Tax Clearance (MRA) Obtained",
+                    "Signing by Director of Town Planning",
+                    "Signing by Director of Financial Services",
+                    "Initial CEO Signature",
+                    "Document Preparation",
+                    "Final CEO Signature"
+                ]
+
+            # Load previously saved steps from the database
+            saved_steps_str = str(record.get("Completed Steps", ""))
+            if saved_steps_str == "nan" or saved_steps_str == "N/A":
+                saved_steps_str = ""
+            saved_steps = saved_steps_str.split(",") if saved_steps_str else []
+
+            st.markdown(f"### Standard Operating Procedure: {track_type}")
+            
+            # Create a form so the user can check boxes and submit all at once
+            with st.form("tracker_form"):
+                checked_states = []
+                for i, title in enumerate(steps, 1):
+                    # Pre-check the box if it was saved previously
+                    is_checked = title in saved_steps
+                    
+                    checked = st.checkbox(f"Step {i}: {title}", value=is_checked)
+                    if checked:
+                        checked_states.append(title)
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                submitted = st.form_submit_button(" 💾 Save Progress to Registry", use_container_width=True)
+                
+                if submitted:
+                    # Convert checked steps to a comma-separated string
+                    new_steps_str = ",".join(checked_states)
+                    
+                    # Update the dataframe
+                    df_bcc.at[record_idx, "Completed Steps"] = new_steps_str
+                    
+                    # Push the updated dataframe back to Google Sheets
+                    conn.update(data=df_bcc)
+                    st.cache_data.clear()
+                    st.success("✅ Progress successfully synced to the database!")
+                    st.balloons()
 
 # ── Live Mode ───────────────────────────────────────────────────────────────
 if live_mode:
