@@ -511,19 +511,25 @@ elif current_page == "intake":
         rate_info = target_dict[intake_category][intake_subcategory]
         input_fee_paid = st.number_input("Total Amount Received on Receipt (MK)", min_value=0.0, value=50000.0, step=5000.0)
 
-        deductions = 0.0
-        if intake_dept == "Town Planning (Scrutiny)":
-            st.markdown("<div style='font-size:0.80rem; color:#6B7A96; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-top:15px; margin-bottom:5px;'>Check items included in this receipt total:</div>", unsafe_allow_html=True)
-            bundle_col1, bundle_col2, bundle_col3 = st.columns(3)
-            with bundle_col1:
-                intake_inc_app = st.checkbox("Base Application Fee (MK 15,000)", value=True)
-                intake_inc_site = st.checkbox("Site Plan Cert. (MK 15,000)", value=False)
-            with bundle_col2:
-                intake_inc_septic = st.checkbox("Septic Tank Installation (MK 40,000)", value=False)
-                intake_inc_sewer = st.checkbox("Sewer Application Fee (MK 100,000)", value=False)
-            with bundle_col3:
-                intake_inc_parking = st.checkbox("Surface Car Parking (MK 280,000)", value=False)
+        # Boolean to check if the current department is Town Planning
+        is_tp = (intake_dept == "Town Planning (Scrutiny)")
+        
+        st.markdown("<div style='font-size:0.80rem; color:#6B7A96; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-top:15px; margin-bottom:5px;'>Check items included in this receipt total:</div>", unsafe_allow_html=True)
+        
+        # Checkboxes are rendered regardless, but disabled (grayed out) if NOT in Town Planning
+        bundle_col1, bundle_col2, bundle_col3 = st.columns(3)
+        with bundle_col1:
+            intake_inc_app = st.checkbox("Base Application Fee (MK 15,000)", value=True, disabled=not is_tp)
+            intake_inc_site = st.checkbox("Site Plan Cert. (MK 15,000)", value=False, disabled=not is_tp)
+        with bundle_col2:
+            intake_inc_septic = st.checkbox("Septic Tank Installation (MK 40,000)", value=False, disabled=not is_tp)
+            intake_inc_sewer = st.checkbox("Sewer Application Fee (MK 100,000)", value=False, disabled=not is_tp)
+        with bundle_col3:
+            intake_inc_parking = st.checkbox("Surface Car Parking (MK 280,000)", value=False, disabled=not is_tp)
 
+        # Process deductions ONLY if the department is Town Planning
+        deductions = 0.0
+        if is_tp:
             if intake_inc_app: deductions += BCC_RATES["Advertising"]["Application Fee"]["rate"]
             if intake_inc_septic: deductions += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
             if intake_inc_site: deductions += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
