@@ -735,7 +735,9 @@ elif current_page == "tracker":
             st.success(f"✅ **Record Loaded:** {record['Applicant Name']} | **Plot:** {record['Plot Number']} | **Category:** {record['Category']}")
             
             st.markdown("<br>", unsafe_allow_html=True)
-            track_type = st.radio("Select Workflow Process for this application:", ["Lease Application", "Change of Ownership"], horizontal=True)
+            
+            # --- UPDATED: Added 'Plan Approval' to the radio button options ---
+            track_type = st.radio("Select Workflow Process for this application:", ["Lease Application", "Change of Ownership", "Plan Approval"], horizontal=True)
             
             if track_type == "Lease Application":
                 steps = [
@@ -749,6 +751,17 @@ elif current_page == "tracker":
                     "Development Charges Cleared",
                     "Legal Costs Cleared",
                     "Final Signing by Director"
+                ]
+            # --- NEW: Added the Plan Approval steps block ---
+            elif track_type == "Plan Approval":
+                steps = [
+                    "Submission of Plans",
+                    "Payment of Scrutiny Fees",
+                    "Technical Screening of Plans",
+                    "Town Planning Committee Screening and Approval of Plans",
+                    "Preparation of Grants Permissions",
+                    "Stamping of the Approved plans",
+                    "Signing of the plans and grants permissions by the director of town planning and estates services"
                 ]
             else:
                 steps = [
