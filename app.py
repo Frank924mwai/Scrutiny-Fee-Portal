@@ -18,15 +18,14 @@ st.set_page_config(
 st.markdown("""
 <style>
 /* High-contrast overrides */
-div[data-testid="stMarkdownContainer"] p,
-div[data-testid="stMarkdownContainer"] span,
-.stSlider label, .stNumberInput label, label[data-testid="stWidgetLabel"] p,
+div[data-testid="stMarkdownContainer"] p, 
+div[data-testid="stMarkdownContainer"] span, 
+.stSlider label, .stNumberInput label, label[data-testid="stWidgetLabel"] p, 
 div[data-testid="stRadio"] label div[data-testid="stMarkdownContainer"] p {
     color: #1A202C !important;
     font-weight: 500 !important;
 }
 h3 { color: #1E65B5 !important; }
-
 /* Palette */
 :root {
     --navy: #1E65B5;
@@ -38,11 +37,9 @@ h3 { color: #1E65B5 !important; }
     --muted: #6B7A96;
 }
 .stApp { background-color: var(--bg); }
-
 /* Sidebar */
 [data-testid="stSidebar"] { background-color: var(--navy) !important; }
 [data-testid="stSidebar"] * { color: #E8EDF5 !important; }
-
 /* Buttons */
 div.stButton > button {
     background-color: var(--navy) !important;
@@ -55,7 +52,6 @@ div.stButton > button {
 div.stButton > button:hover {
     background-color: #243660 !important;
 }
-
 /* Input Container Backgrounds */
 [data-testid="stTextInput"] div[data-baseweb="input"] > div,
 [data-testid="stNumberInput"] div[data-baseweb="input"] > div,
@@ -64,7 +60,6 @@ div.stButton > button:hover {
     background-color: #FFFFFF !important;
     border: 1px solid #DDE3EE !important;
 }
-
 /* Input Text Colors */
 [data-testid="stTextInput"] input,
 [data-testid="stNumberInput"] input,
@@ -73,7 +68,6 @@ div.stButton > button:hover {
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
 }
-
 /* Radio Buttons */
 div[role="radiogroup"] div[data-baseweb="radio"] > div:first-child {
     background-color: #FFFFFF !important;
@@ -82,7 +76,6 @@ div[role="radiogroup"] div[data-baseweb="radio"] > div:first-child {
 div[role="radiogroup"] div[data-baseweb="radio"] input:checked + div > div {
     background-color: #1E65B5 !important;
 }
-
 /* Custom CSS classes */
 .card-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .kpi-tile { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; text-align: center; }
@@ -129,12 +122,12 @@ if not st.session_state["authenticated"]:
             st.markdown("<h3 style='text-align: center; margin-top: 0; margin-bottom: 20px;'>Secure Registry Authentication</h3>", unsafe_allow_html=True)
             password_input = st.text_input("Internal Access Password", type="password", placeholder="••••••••")
             submit_auth = st.button("Verify Credentials", use_container_width=True)
-            
+
             if submit_auth:
                 try:
                     correct_password = st.secrets["auth"]["password"]
                 except Exception:
-                    st.error(" ❌  Secrets not configured. Contact administrator.")
+                    st.error("  ❌   Secrets not configured. Contact administrator.")
                     correct_password = None
                 
                 if correct_password and password_input == correct_password:
@@ -142,7 +135,7 @@ if not st.session_state["authenticated"]:
                     st.session_state.prev_page = "calculator"
                     st.rerun()
                 else:
-                    st.error(" ❌  Invalid access token. Please verify credentials and re-enter.")
+                    st.error("  ❌   Invalid access token. Please verify credentials and re-enter.")
     st.stop()
 
 # ── Master Data Dictionaries ────────────────────────────────────────────────
@@ -258,14 +251,14 @@ def _calc_raw_base_fee(dept: str, category: str, rate_info: dict, qty: float, pr
     else:
         # Estates Logic
         if rate_info["unit"] == "market_value":
-            est_cost = premium * qty  # Premium * Area
+            est_cost = premium * qty
             fee = premium * rate_info["rate"] * qty
         elif rate_info["unit"] == "qty_based":
             est_cost = 0.0
             fee = qty * rate_info["rate"]
         else:
             est_cost = 0.0
-            fee = rate_info["rate"] * qty  # qty usually 1 for fixed fees
+            fee = rate_info["rate"] * qty
         return est_cost, fee
 
 # ── Google Sheets Connection ───────────────────────────────────────────────
@@ -301,13 +294,13 @@ def load_data() -> pd.DataFrame:
 df_bcc = load_data()
 
 # ── Sidebar ────────────────────────────────────────────────────────────────
-st.sidebar.markdown("###  🏛  BCC PORTAL")
+st.sidebar.markdown("###   🏛   BCC PORTAL")
 st.sidebar.markdown("---")
 PAGE_MAP = {
-    " 🧮  Fee Calculator": "calculator",
-    " 📥  New Application Intake": "intake",
-    " 📊  Submission Analytics": "analytics",
-    " 🛤️  Process Tracking": "tracker"
+    "  🧮   Fee Calculator": "calculator",
+    "  📥   New Application Intake": "intake",
+    "  📊   Submission Analytics": "analytics",
+    "  🛤️   Process Tracking": "tracker"
 }
 selected_label = st.sidebar.radio("Navigate to:", list(PAGE_MAP.keys()), key="sidebar_nav")
 current_page = PAGE_MAP[selected_label]
@@ -315,8 +308,9 @@ current_page = PAGE_MAP[selected_label]
 # ── Page Change Handler ────────────────────────────────────────────────────
 if "prev_page" not in st.session_state:
     st.session_state.prev_page = current_page
+
 if st.session_state.prev_page != current_page:
-    keys_to_clear = [k for k in st.session_state.keys() 
+    keys_to_clear = [k for k in st.session_state.keys()
                      if k.startswith("calc_") or k.startswith("intake_") or k.startswith("trend_") or k.startswith("dept_")]
     for k in keys_to_clear:
         if k in st.session_state:
@@ -326,30 +320,28 @@ if st.session_state.prev_page != current_page:
 
 # ── Dashboard Controls ─────────────────────────────────────────────────────
 st.sidebar.markdown("---")
-st.sidebar.markdown("###  ⚙️  DASHBOARD CONTROLS")
-live_mode = st.sidebar.toggle(" 🔄  Enable Real-Time Live View", value=False)
+st.sidebar.markdown("###   ⚙️   DASHBOARD CONTROLS")
+live_mode = st.sidebar.toggle("  🔄   Enable Real-Time Live View", value=False)
 if live_mode:
     refresh_rate = st.sidebar.slider("Refresh Interval (seconds)", 5, 60, 10)
-
+    
 st.sidebar.markdown("---")
 st.sidebar.caption("Blantyre City Council · Town Planning & Estates")
 
-#  ══════════════════════════════════════════════════════════════════════════════
-# MODULE 1 — FEE CALCULATOR (DUAL DEPARTMENT)
-#  ══════════════════════════════════════════════════════════════════════════════
+#   ══════════════════════════════════════════════════════════════════════════════
+#   MODULE 1 — FEE CALCULATOR (DUAL DEPARTMENT)
+#   ══════════════════════════════════════════════════════════════════════════════
 if current_page == "calculator":
-    st.markdown("##  🧮  FEE CALCULATOR")
+    st.markdown("##   🧮   FEE CALCULATOR")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     
     dept_choice = st.radio("Select Department Parameter", ["Town Planning (Scrutiny)", "Estates Services"], horizontal=True, key="calc_dept")
     target_dict = BCC_RATES if dept_choice == "Town Planning (Scrutiny)" else ESTATES_FEES
-
+    
     col1, col2 = st.columns([1, 1], gap="large")
-
     with col1:
         with st.container(border=True):
             st.markdown('<div class="card-title">Development / Service Parameters</div>', unsafe_allow_html=True)
-            
             category = st.selectbox("Plan Category", list(target_dict.keys()), key="calc_cat")
             subcategory = st.selectbox("Service / Development Type", list(target_dict[category].keys()), key="calc_sub")
             
@@ -362,8 +354,9 @@ if current_page == "calculator":
             
             if unit_type == "sqm":
                 st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-                st.markdown('<div class="card-title"> 📐  Area Determination Method</div>', unsafe_allow_html=True)
+                st.markdown('<div class="card-title">  📐   Area Determination Method</div>', unsafe_allow_html=True)
                 input_method = st.radio("Entry format:", ["Enter Total Area Manually", "Calculate Using Geometric Shapes"], horizontal=True, key="calc_method")
+                
                 if input_method == "Enter Total Area Manually":
                     input_val = st.number_input("Total Built-up Area (Square Meters)", min_value=0.0, value=100.0, step=10.0, key="calc_man_sqm")
                 else:
@@ -387,56 +380,52 @@ if current_page == "calculator":
                     elif shape == "Semicircle":
                         semi_radius = st.number_input("Radius (m)", min_value=0.0, value=7.0, step=0.5)
                         input_val = 0.5 * math.pi * semi_radius ** 2
-                st.metric(label="Calculated Spatial Footprint", value=f"{input_val:,.2f} sqm")
-            
+                    st.metric(label="Calculated Spatial Footprint", value=f"{input_val:,.2f} sqm")
+                    
             elif unit_type == "linear_meters":
                 input_val = st.number_input("Total Fence Length (Meters)", min_value=0.0, value=50.0, step=5.0)
-            
             elif unit_type == "percentage_of_final_cost":
                 input_val = st.number_input("Declared Final Structural Cost (MK)", min_value=0.0, value=5000000.0, step=100000.0)
-            
             elif unit_type == "market_value":
                 premium_val = st.number_input("Premium Value (MK)", min_value=0.0, value=1000000.0, step=50000.0)
                 input_val = st.number_input("Plot Area (Square Meters)", min_value=0.0, value=1000.0, step=10.0)
-                
             elif unit_type == "qty_based":
                 input_val = st.number_input("Quantity (e.g. number of 0.036ha portions or beacons)", min_value=1.0, value=1.0, step=1.0)
-                
             else:
                 input_val = st.number_input("Quantity / Units", min_value=1.0, value=1.0, step=1.0)
 
-        addon_accumulated = 0.0
-        # Dynamic Add-on Fees Bundle Engine (Scrutiny Only)
-        if dept_choice == "Town Planning (Scrutiny)":
-            with st.container(border=True):
-                st.markdown('<div class="card-title"> 📦  Combine Additional Fees (Optional)</div>', unsafe_allow_html=True)
-                show_app_checkbox = not (category == "Advertising" and subcategory == "Application Fee")
-                
-                calc_inc_app = st.checkbox("Include Base Application Fee (MK 15,000)", value=show_app_checkbox, disabled=not show_app_checkbox)
-                calc_inc_septic = st.checkbox("Include Septic Tank Fee (MK 40,000)", value=False)
-                calc_inc_site = st.checkbox("Include Site Plan Cert. (MK 15,000)", value=False)
-                calc_inc_parking = st.checkbox("Include Surface Car Parking (MK 280,000)", value=False)
-                calc_inc_sewer = st.checkbox("Include Sewer Application Fee (MK 100,000)", value=False)
-                
-                if calc_inc_app and show_app_checkbox: addon_accumulated += BCC_RATES["Advertising"]["Application Fee"]["rate"]
-                if calc_inc_septic: addon_accumulated += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
-                if calc_inc_site: addon_accumulated += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
-                if calc_inc_parking: addon_accumulated += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
-                if calc_inc_sewer: addon_accumulated += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
-
-        estimated_cost, base_fee = _calc_raw_base_fee(dept_choice, category, item_details, input_val, premium_val)
-        total_fee_due = base_fee + addon_accumulated
-
+            addon_accumulated = 0.0
+            
+            # Dynamic Add-on Fees Bundle Engine (Scrutiny Only)
+            if dept_choice == "Town Planning (Scrutiny)":
+                with st.container(border=True):
+                    st.markdown('<div class="card-title">  📦   Combine Additional Fees (Optional)</div>', unsafe_allow_html=True)
+                    show_app_checkbox = not (category == "Advertising" and subcategory == "Application Fee")
+                    
+                    calc_inc_app = st.checkbox("Include Base Application Fee (MK 15,000)", value=show_app_checkbox, disabled=not show_app_checkbox)
+                    calc_inc_septic = st.checkbox("Include Septic Tank Fee (MK 40,000)", value=False)
+                    calc_inc_site = st.checkbox("Include Site Plan Cert. (MK 15,000)", value=False)
+                    calc_inc_parking = st.checkbox("Include Surface Car Parking (MK 280,000)", value=False)
+                    calc_inc_sewer = st.checkbox("Include Sewer Application Fee (MK 100,000)", value=False)
+                    
+                    if calc_inc_app and show_app_checkbox: addon_accumulated += BCC_RATES["Advertising"]["Application Fee"]["rate"]
+                    if calc_inc_septic: addon_accumulated += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
+                    if calc_inc_site: addon_accumulated += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
+                    if calc_inc_parking: addon_accumulated += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
+                    if calc_inc_sewer: addon_accumulated += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
+                    
+            estimated_cost, base_fee = _calc_raw_base_fee(dept_choice, category, item_details, input_val, premium_val)
+            total_fee_due = base_fee + addon_accumulated
+            
     with col2:
         with st.container(border=True):
             st.markdown('<div class="card-title">Assessment Breakdown</div>', unsafe_allow_html=True)
-            
             st.markdown(f"""
             <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:16px;border:1px solid #DDE3EE;">
-                <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Category</div>
-                <div style="font-size:0.95rem;color:#1B2A4A;font-weight:600;">{category}</div>
-                <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-top:10px;margin-bottom:4px;">Development Type</div>
-                <div style="font-size:0.95rem;color:#1B2A4A;font-weight:600;">{subcategory}</div>
+              <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Category</div>
+              <div style="font-size:0.95rem;color:#1B2A4A;font-weight:600;">{category}</div>
+              <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-top:10px;margin-bottom:4px;">Development Type</div>
+              <div style="font-size:0.95rem;color:#1B2A4A;font-weight:600;">{subcategory}</div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -477,40 +466,39 @@ if current_page == "calculator":
                 
             st.markdown(f"""
             <div class="fee-result">
-                <div class="fee-label">Total Invoice Amount Payable</div>
-                <div class="fee-amount">MK {total_fee_due:,.2f}</div>
-                <div class="fee-note">Reflects calculations for {dept_choice} procedures.</div>
+              <div class="fee-label">Total Invoice Amount Payable</div>
+              <div class="fee-amount">MK {total_fee_due:,.2f}</div>
+              <div class="fee-note">Reflects calculations for {dept_choice} procedures.</div>
             </div>
             """, unsafe_allow_html=True)
 
-#  ══════════════════════════════════════════════════════════════════════════════
-# MODULE 2 — NEW APPLICATION INTAKE
-#  ══════════════════════════════════════════════════════════════════════════════
+#   ══════════════════════════════════════════════════════════════════════════════
+#   MODULE 2 — NEW APPLICATION INTAKE
+#   ══════════════════════════════════════════════════════════════════════════════
 elif current_page == "intake":
-    st.markdown("##  📥  NEW APPLICATION INTAKE")
+    st.markdown("##   📥   NEW APPLICATION INTAKE")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     st.markdown("Complete the fields below to register a new plan submission or estate service to the BCC registry.")
-
+    
     intake_dept = st.radio("Select Department", ["Town Planning (Scrutiny)", "Estates Services"], horizontal=True, key="intake_dept")
     target_dict = BCC_RATES if intake_dept == "Town Planning (Scrutiny)" else ESTATES_FEES
-
+    
     col1, col2 = st.columns(2, gap="large")
     with col1:
-        app_id = st.text_input("Application / File ID", placeholder="e.g., BCC/TP/2026/250")
-        applicant_name = st.text_input("Applicant Name / Developer Entity")
-        date_rcvd = st.date_input("Date Received", value=datetime.today())
+        app_id = st.text_input("Application / File ID", placeholder="e.g., BCC/TP/2026/250", key="intake_app_id")
+        applicant_name = st.text_input("Applicant Name / Developer Entity", key="intake_applicant")
+        date_rcvd = st.date_input("Date Received", value=datetime.today(), key="intake_date")
     with col2:
-        plot_number = st.text_input("Plot Number / Parcel ID")
+        plot_number = st.text_input("Plot Number / Parcel ID", key="intake_plot")
         intake_category = st.selectbox("Category", list(target_dict.keys()), key="intake_cat")
         intake_subcategory = st.selectbox("Development Type", list(target_dict[intake_category].keys()), key="intake_sub")
-
+        
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-
     with st.container(border=True):
         st.markdown('<div class="card-title">Financial Metrics Input</div>', unsafe_allow_html=True)
         rate_info = target_dict[intake_category][intake_subcategory]
-        input_fee_paid = st.number_input("Total Amount Received on Receipt (MK)", min_value=0.0, value=50000.0, step=5000.0)
-
+        input_fee_paid = st.number_input("Total Amount Received on Receipt (MK)", min_value=0.0, value=50000.0, step=5000.0, key="intake_fee")
+        
         # Boolean to check if the current department is Town Planning
         is_tp = (intake_dept == "Town Planning (Scrutiny)")
         
@@ -519,14 +507,14 @@ elif current_page == "intake":
         # Checkboxes are rendered regardless, but disabled (grayed out) if NOT in Town Planning
         bundle_col1, bundle_col2, bundle_col3 = st.columns(3)
         with bundle_col1:
-            intake_inc_app = st.checkbox("Base Application Fee (MK 15,000)", value=True, disabled=not is_tp)
-            intake_inc_site = st.checkbox("Site Plan Cert. (MK 15,000)", value=False, disabled=not is_tp)
+            intake_inc_app = st.checkbox("Base Application Fee (MK 15,000)", value=True, disabled=not is_tp, key="inc_app")
+            intake_inc_site = st.checkbox("Site Plan Cert. (MK 15,000)", value=False, disabled=not is_tp, key="inc_site")
         with bundle_col2:
-            intake_inc_septic = st.checkbox("Septic Tank Installation (MK 40,000)", value=False, disabled=not is_tp)
-            intake_inc_sewer = st.checkbox("Sewer Application Fee (MK 100,000)", value=False, disabled=not is_tp)
+            intake_inc_septic = st.checkbox("Septic Tank Installation (MK 40,000)", value=False, disabled=not is_tp, key="inc_septic")
+            intake_inc_sewer = st.checkbox("Sewer Application Fee (MK 100,000)", value=False, disabled=not is_tp, key="inc_sewer")
         with bundle_col3:
-            intake_inc_parking = st.checkbox("Surface Car Parking (MK 280,000)", value=False, disabled=not is_tp)
-
+            intake_inc_parking = st.checkbox("Surface Car Parking (MK 280,000)", value=False, disabled=not is_tp, key="inc_parking")
+            
         # Process deductions ONLY if the department is Town Planning
         deductions = 0.0
         if is_tp:
@@ -535,10 +523,22 @@ elif current_page == "intake":
             if intake_inc_site: deductions += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
             if intake_inc_parking: deductions += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
             if intake_inc_sewer: deductions += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
-
+            
         st.markdown("<br>", unsafe_allow_html=True)
-        submit_btn = st.button(" 📄  Append Entry to Registry", use_container_width=True)
+        
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            submit_btn = st.button("  📄   Append Entry to Registry", use_container_width=True)
+        with btn_col2:
+            clear_btn = st.button("  🧹   Clear Data", use_container_width=True)
 
+        if clear_btn:
+            keys_to_clear = ["intake_app_id", "intake_applicant", "intake_plot", "intake_fee", "intake_date", "inc_app", "inc_site", "inc_septic", "inc_sewer", "inc_parking"]
+            for k in keys_to_clear:
+                if k in st.session_state:
+                    del st.session_state[k]
+            st.rerun()
+            
         if submit_btn:
             errors = []
             if not app_id.strip(): errors.append("Application ID Reference Number is required.")
@@ -546,7 +546,7 @@ elif current_page == "intake":
             if not plot_number.strip(): errors.append("Plot Number is required.")
             
             if errors:
-                for e in errors: st.error(f" ❌  {e}")
+                for e in errors: st.error(f"  ❌   {e}")
             else:
                 net_fee = max(0.0, input_fee_paid - deductions)
                 
@@ -560,7 +560,7 @@ elif current_page == "intake":
                 else:
                     calc_est_cost = 0.0
                     derived_dimension = net_fee / rate_info["rate"] if rate_info["rate"] > 0 else 1.0
-
+                    
                 new_row = {
                     "Application ID": app_id.strip().upper(),
                     "Date Received": date_rcvd.strftime("%Y-%m-%d"),
@@ -582,58 +582,58 @@ elif current_page == "intake":
                 df_updated = pd.concat([df_existing, pd.DataFrame([new_row])], ignore_index=True)
                 conn.update(data=df_updated)
                 st.cache_data.clear()
-                st.success(f" ✅  Record for **{applicant_name.strip()} ({plot_number.strip()})** appended securely to cloud index file.")
+                st.success(f"  ✅   Record for **{applicant_name.strip()} ({plot_number.strip()})** appended securely to cloud index file.")
                 st.balloons()
 
-#  ══════════════════════════════════════════════════════════════════════════════
-# MODULE 3 — SUBMISSION ANALYTICS
-#  ══════════════════════════════════════════════════════════════════════════════
+#   ══════════════════════════════════════════════════════════════════════════════
+#   MODULE 3 — SUBMISSION ANALYTICS
+#   ══════════════════════════════════════════════════════════════════════════════
 elif current_page == "analytics":
-    st.markdown("##  📊  SUBMISSION ANALYTICS")
+    st.markdown("##   📊   SUBMISSION ANALYTICS")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     
     view_filter = st.radio("View Data For:", ["All Departments", "Town Planning (Scrutiny)", "Estates Services"], horizontal=True)
-
     df_filtered = df_bcc.copy()
+    
     if view_filter != "All Departments":
         df_filtered = df_filtered[df_filtered["Department"] == view_filter]
-
+        
     if df_filtered.empty:
-        st.info(" 📭  No applications on record for this selection. Use **New Application Intake** to add entries.")
+        st.info("  📭   No applications on record for this selection. Use **New Application Intake** to add entries.")
     else:
         total_apps = len(df_filtered)
         total_fees = df_filtered["Total Fee (MK)"].sum()
         avg_fee = df_filtered["Total Fee (MK)"].mean()
-
+        
         k1, k2, k3 = st.columns(3, gap="large")
         k1.markdown(f"""
         <div class="kpi-tile">
-            <div class="kpi-label">Total Applications</div>
-            <div class="kpi-value">{total_apps:,}</div>
-            <div class="kpi-sub">In selected view</div>
+          <div class="kpi-label">Total Applications</div>
+          <div class="kpi-value">{total_apps:,}</div>
+          <div class="kpi-sub">In selected view</div>
         </div>""", unsafe_allow_html=True)
         k2.markdown(f"""
         <div class="kpi-tile">
-            <div class="kpi-label">Total Fees Collected</div>
-            <div class="kpi-value" style="font-size:1.25rem;">MK {total_fees:,.0f}</div>
-            <div class="kpi-sub">Cumulative revenue</div>
+          <div class="kpi-label">Total Fees Collected</div>
+          <div class="kpi-value" style="font-size:1.25rem;">MK {total_fees:,.0f}</div>
+          <div class="kpi-sub">Cumulative revenue</div>
         </div>""", unsafe_allow_html=True)
         k3.markdown(f"""
         <div class="kpi-tile">
-            <div class="kpi-label">Average Fee</div>
-            <div class="kpi-value" style="font-size:1.25rem;">MK {avg_fee:,.0f}</div>
-            <div class="kpi-sub">Per application</div>
+          <div class="kpi-label">Average Fee</div>
+          <div class="kpi-value" style="font-size:1.25rem;">MK {avg_fee:,.0f}</div>
+          <div class="kpi-sub">Per application</div>
         </div>""", unsafe_allow_html=True)
-
+        
         st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
         st.markdown("#### Submission Trends")
-
         time_frame = st.radio("Group by:", ["Weekly", "Monthly", "Quarterly"], horizontal=True, key="trend_group")
-
+        
         df_chart = df_filtered.copy()
         df_chart["Date Received"] = pd.to_datetime(df_chart["Date Received"], errors='coerce')
-        df_chart = df_chart.dropna(subset=["Date Received"])
-
+        # FIX: Fill invalid/blank legacy dates with today's date so charts still populate for Estates
+        df_chart["Date Received"] = df_chart["Date Received"].fillna(pd.Timestamp.today())
+        
         if not df_chart.empty:
             if time_frame == "Weekly":
                 df_chart["Period"] = df_chart["Date Received"].dt.to_period("W").dt.start_time.dt.strftime('%Y-%m-%d')
@@ -641,11 +641,10 @@ elif current_page == "analytics":
                 df_chart["Period"] = df_chart["Date Received"].dt.to_period("M").dt.start_time.dt.strftime('%b %Y')
             else:
                 df_chart["Period"] = df_chart["Date Received"].dt.to_period("Q").astype(str)
-
+                
             summary = df_chart.groupby(["Period", "Category"]).size().reset_index(name="Submissions Count")
-
+            
             col1, col2 = st.columns([3, 2], gap="large")
-
             with col1:
                 fig_trend = px.bar(
                     summary, x="Period", y="Submissions Count", color="Category",
@@ -663,7 +662,7 @@ elif current_page == "analytics":
                     yaxis=dict(tickfont=dict(size=13, color="#1A202C"), title="Number of Submissions", gridcolor="#EEF0F5")
                 )
                 st.plotly_chart(fig_trend, use_container_width=True, theme=None)
-
+                
             with col2:
                 pie_data = df_chart.groupby("Category").size().reset_index(name="Total Applications")
                 pie_data["Label"] = pie_data["Category"].str.replace(r"^\d+\.\s*", "", regex=True)
@@ -679,10 +678,10 @@ elif current_page == "analytics":
                     legend=dict(orientation="h", yanchor="bottom", y=-0.25, font=dict(size=13, color="#1A202C"))
                 )
                 st.plotly_chart(fig_share, use_container_width=True, theme=None)
-
-            # ─── NEW: VOLUME MATRIX SECTION ──────────────────────────────────────────
+                
+            # ─── VOLUME MATRIX SECTION ──────────────────────────────────────────
             st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-            st.markdown("####  🧮  Volume Matrix (Category by Period)")
+            st.markdown("####   🧮   Volume Matrix (Category by Period)")
             
             # Create a pivot table showing Category rows and Period columns
             matrix_df = pd.crosstab(df_chart["Category"], df_chart["Period"])
@@ -691,19 +690,18 @@ elif current_page == "analytics":
             matrix_df["Total"] = matrix_df.sum(axis=1)
             matrix_df.loc["Grand Total"] = matrix_df.sum(axis=0)
             
-            # Apply a heatmap background gradient to the data (excluding the Total column/row)
-            # The background gradient helps visually identify high-volume combinations instantly.
+            # Apply a heatmap background gradient
             styled_matrix = matrix_df.style.background_gradient(
-                cmap="Blues", 
-                axis=None, 
+                cmap="Blues",
+                axis=None,
                 subset=(matrix_df.index[:-1], matrix_df.columns[:-1])
             ).format("{:,.0f}")
             
             st.dataframe(styled_matrix, use_container_width=True)
-            # ─────────────────────────────────────────────────────────────────────────
-
+            
+        # ─────────────────────────────────────────────────────────────────────────
         st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-        st.markdown("####  📋  Application Registry")
+        st.markdown("####   📋   Application Registry")
         search_query = st.text_input("Search registry:", placeholder="Filter by Plot #, Applicant name, or File ID…", label_visibility="collapsed")
         
         df_display = df_filtered.copy()
@@ -714,7 +712,7 @@ elif current_page == "analytics":
                 df_display["Applicant Name"].astype(str).str.lower().str.contains(q, na=False) |
                 df_display["Plot Number"].astype(str).str.lower().str.contains(q, na=False)
             ]
-
+            
         df_display_renamed = df_display.sort_values(by="Date Received", ascending=False)
         format_dict = {
             "Est. Cost (MK)": "{:,.2f}",
@@ -722,21 +720,20 @@ elif current_page == "analytics":
         }
         if pd.api.types.is_datetime64_any_dtype(df_display_renamed["Date Received"]):
             format_dict["Date Received"] = lambda x: x.strftime('%Y-%m-%d') if pd.notnull(x) else ""
-
+            
         styled_df = df_display_renamed.style.set_properties(**{
             'background-color': '#FFFFFF', 'color': '#000000', 'border-color': '#DDE3EE'
         }).format(format_dict)
-
         st.dataframe(styled_df, use_container_width=True)
-#  ══════════════════════════════════════════════════════════════════════════════
-# MODULE 4 — PROCESS TRACKING (DATABASE CONNECTED)
-#  ══════════════════════════════════════════════════════════════════════════════
+
+#   ══════════════════════════════════════════════════════════════════════════════
+#   MODULE 4 — PROCESS TRACKING (DATABASE CONNECTED)
+#   ══════════════════════════════════════════════════════════════════════════════
 elif current_page == "tracker":
-    st.markdown("##  🛤️  PROCESS TRACKING")
+    st.markdown("##   🛤️   PROCESS TRACKING")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     st.markdown("Search for an existing application to update its operational phase.")
-
-    search_query = st.text_input("🔍 Enter Application ID or Plot Number to load record:", placeholder="e.g., BCC/TP/2026/250 or Plot BC 24")
+    search_query = st.text_input(" 🔍  Enter Application ID or Plot Number to load record:", placeholder="e.g., BCC/TP/2026/250 or Plot BC 24")
     
     if search_query.strip():
         q = search_query.strip().lower()
@@ -746,18 +743,16 @@ elif current_page == "tracker":
             df_bcc["Application ID"].astype(str).str.lower().eq(q) |
             df_bcc["Plot Number"].astype(str).str.lower().eq(q)
         ].index
-
+        
         if len(match_idx) == 0:
-            st.warning("⚠️ No matching record found in the registry. Please check the ID or Plot Number.")
+            st.warning(" ⚠️  No matching record found in the registry. Please check the ID or Plot Number.")
         else:
             record_idx = match_idx[0]
             record = df_bcc.loc[record_idx]
             
-            st.success(f"✅ **Record Loaded:** {record['Applicant Name']} | **Plot:** {record['Plot Number']} | **Category:** {record['Category']}")
-            
+            st.success(f" ✅  **Record Loaded:** {record['Applicant Name']} | **Plot:** {record['Plot Number']} | **Category:** {record['Category']}")
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # --- UPDATED: Added 'Plan Approval' to the radio button options ---
             track_type = st.radio("Select Workflow Process for this application:", ["Lease Application", "Change of Ownership", "Plan Approval"], horizontal=True)
             
             if track_type == "Lease Application":
@@ -773,7 +768,6 @@ elif current_page == "tracker":
                     "Legal Costs Cleared",
                     "Final Signing by Director of Town Planning and Estates Services"
                 ]
-            # --- NEW: Added the Plan Approval steps block ---
             elif track_type == "Plan Approval":
                 steps = [
                     "Submission of Plans",
@@ -799,13 +793,13 @@ elif current_page == "tracker":
                     "Document Preparation",
                     "Final CEO Signature"
                 ]
-
+                
             # Load previously saved steps from the database
             saved_steps_str = str(record.get("Completed Steps", ""))
             if saved_steps_str == "nan" or saved_steps_str == "N/A":
                 saved_steps_str = ""
             saved_steps = saved_steps_str.split(",") if saved_steps_str else []
-
+            
             st.markdown(f"### Standard Operating Procedure: {track_type}")
             
             # Create a form so the user can check boxes and submit all at once
@@ -814,25 +808,19 @@ elif current_page == "tracker":
                 for i, title in enumerate(steps, 1):
                     # Pre-check the box if it was saved previously
                     is_checked = title in saved_steps
-                    
                     checked = st.checkbox(f"Step {i}: {title}", value=is_checked)
                     if checked:
                         checked_states.append(title)
-                
+                        
                 st.markdown("<br>", unsafe_allow_html=True)
-                submitted = st.form_submit_button(" 💾 Save Progress to Registry", use_container_width=True)
+                submitted = st.form_submit_button("  💾  Save Progress to Registry", use_container_width=True)
                 
                 if submitted:
-                    # Convert checked steps to a comma-separated string
                     new_steps_str = ",".join(checked_states)
-                    
-                    # Update the dataframe
                     df_bcc.at[record_idx, "Completed Steps"] = new_steps_str
-                    
-                    # Push the updated dataframe back to Google Sheets
                     conn.update(data=df_bcc)
                     st.cache_data.clear()
-                    st.success("✅ Progress successfully synced to the database!")
+                    st.success(" ✅  Progress successfully synced to the database!")
                     st.balloons()
 
 # ── Live Mode ───────────────────────────────────────────────────────────────
