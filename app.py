@@ -480,6 +480,19 @@ elif current_page == "intake":
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     st.markdown("Complete the fields below to register a new plan submission or estate service to the BCC registry.")
     
+    # --- CALLBACK FUNCTION: ONLY clears the 4 specified fields ---
+    if "intake_app_id" not in st.session_state: st.session_state["intake_app_id"] = ""
+    if "intake_applicant" not in st.session_state: st.session_state["intake_applicant"] = ""
+    if "intake_plot" not in st.session_state: st.session_state["intake_plot"] = ""
+    if "intake_fee" not in st.session_state: st.session_state["intake_fee"] = 50000.0
+
+    def clear_intake_data():
+        st.session_state["intake_app_id"] = ""
+        st.session_state["intake_applicant"] = ""
+        st.session_state["intake_plot"] = ""
+        st.session_state["intake_fee"] = 50000.0  # Resets to default MK
+    # -------------------------------------------------------------
+
     intake_dept = st.radio("Select Department", ["Town Planning (Scrutiny)", "Estates Services"], horizontal=True, key="intake_dept")
     target_dict = BCC_RATES if intake_dept == "Town Planning (Scrutiny)" else ESTATES_FEES
     
@@ -497,7 +510,9 @@ elif current_page == "intake":
     with st.container(border=True):
         st.markdown('<div class="card-title">Financial Metrics Input</div>', unsafe_allow_html=True)
         rate_info = target_dict[intake_category][intake_subcategory]
-        input_fee_paid = st.number_input("Total Amount Received on Receipt (MK)", min_value=0.0, value=50000.0, step=5000.0, key="intake_fee")
+        
+        # Note: 'value=50000.0' is removed from arguments here because it is now managed by session_state
+        input_fee_paid = st.number_input("Total Amount Received on Receipt (MK)", min_value=0.0, step=5000.0, key="intake_fee")
         
         # Boolean to check if the current department is Town Planning
         is_tp = (intake_dept == "Town Planning (Scrutiny)")
@@ -530,14 +545,8 @@ elif current_page == "intake":
         with btn_col1:
             submit_btn = st.button("  📄   Append Entry to Registry", use_container_width=True)
         with btn_col2:
-            clear_btn = st.button("  🧹   Clear Data", use_container_width=True)
-
-        if clear_btn:
-            keys_to_clear = ["intake_app_id", "intake_applicant", "intake_plot", "intake_fee", "intake_date", "inc_app", "inc_site", "inc_septic", "inc_sewer", "inc_parking"]
-            for k in keys_to_clear:
-                if k in st.session_state:
-                    del st.session_state[k]
-            st.rerun()
+            # We trigger the callback directly on button click
+            clear_btn = st.button("  🧹   Clear Data", use_container_width=True, on_click=clear_intake_data)
             
         if submit_btn:
             errors = []
