@@ -120,7 +120,7 @@ if not st.session_state["authenticated"]:
     with login_col:
         with st.container(border=True):
             st.markdown("<h3 style='text-align: center; margin-top: 0; margin-bottom: 20px;'>Secure Registry Authentication</h3>", unsafe_allow_html=True)
-            password_input = st.text_input("Internal Access Password", type="password", placeholder="Enter password...")
+            password_input = st.text_input("Internal Access Password", type="password", placeholder="Enter password")
             submit_auth = st.button("Verify Credentials", use_container_width=True)
 
             if submit_auth:
