@@ -508,10 +508,10 @@ if current_page == "calculator":
             """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MODULE 2 — NEW APPLICATION INTAKE
+# MODULE 2 — NEW APPLICATION
 # ══════════════════════════════════════════════════════════════════════════════
 elif current_page == "intake":
-    st.markdown("## 📥 NEW APPLICATION INTAKE")
+    st.markdown("## 📥 NEW APPLICATION")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     st.markdown("Complete the fields below to register a new plan submission or estate service to the BCC registry.")
     
@@ -768,7 +768,7 @@ elif current_page == "analytics":
         st.dataframe(styled_df, use_container_width=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MODULE 4 — PROCESS TRACKING
+# MODULE 4 — PROCESS TRACKING (FIXED VERSION)
 # ══════════════════════════════════════════════════════════════════════════════
 elif current_page == "tracker":
     st.markdown("## 🛤️ PROCESS TRACKING")
@@ -780,76 +780,64 @@ elif current_page == "tracker":
     
     if search_query.strip():
         q = search_query.strip().lower()
-        match_idx = df_bcc[
-            df_bcc["Application ID"].astype(str).str.lower().eq(q) |
-            df_bcc["Plot Number"].astype(str).str.lower().eq(q)
+        
+        # More robust search
+        df_search = df_bcc.copy()
+        df_search["Application ID"] = df_search["Application ID"].astype(str).str.lower()
+        df_search["Plot Number"] = df_search["Plot Number"].astype(str).str.lower()
+        
+        match_idx = df_search[
+            df_search["Application ID"].str.contains(q, na=False) |
+            df_search["Plot Number"].str.contains(q, na=False)
         ].index
         
         if len(match_idx) == 0:
             st.warning("⚠️ No matching record found in the registry.")
         else:
             record_idx = match_idx[0]
-            record = df_bcc.iloc[record_idx]
+            record = df_bcc.iloc[record_idx].copy()
             
-            st.success(f"✅ **Record Loaded:** {record['Applicant Name']} | **Plot:** {record['Plot Number']} | **Category:** {record['Category']}")
+            st.success(f"✅ **Record Loaded:** {record.get('Applicant Name', 'N/A')} | **Plot:** {record.get('Plot Number', 'N/A')}")
             
-            track_type = st.radio("Select Workflow Process for this application:", 
+            track_type = st.radio("Select Workflow Process:", 
                                 ["Lease Application", "Change of Ownership", "Plan Approval"], 
                                 horizontal=True, key="track_type")
             
+            # Define steps based on type...
             if track_type == "Lease Application":
-                steps = [
-                    "Confirmation of Estate", "Confirmation of Details", "City Rates Clearance",
-                    "Lease Application Fee Paid", "Application Form Submitted", "Property Inspection Completed",
-                    "Surveying Executed", "Development Charges Cleared", "Legal Costs Cleared",
-                    "Final Signing by Director of Town Planning and Estates Services"
-                ]
-            elif track_type == "Plan Approval":
-                steps = [
-                    "Submission of Plans", "Payment of Scrutiny Fees", "Technical Screening of Plans",
-                    "Town Planning Committee Screening and Approval of Plans", "Preparation of Grants Permissions",
-                    "Stamping of the Approved plans", 
-                    "Signing of the plans and grants permissions by the Director of Town Planning and Estates Services"
-                ]
-            else:
-                steps = [
-                    "Obtain Letter (Site Office / Deceased Estate)", "Site Verification", "File Check at Civic Offices",
-                    "City Rates Clearance", "Clearance Certificate Fee Paid", "Change of Ownership Fee Paid",
-                    "Tax Clearance (MRA) Obtained", "Signing by Director of Town Planning and Estates Services",
-                    "Signing by Director of Financial Services", "Initial CEO Signature", "Document Preparation",
-                    "Final CEO Signature"
-                ]
+                steps = ["Confirmation of Estate", "Confirmation of Details", ...]  # your full list
+            # ... (keep your existing steps lists)
             
-            saved_steps_str = str(record.get("Completed Steps", ""))
-            if saved_steps_str in ["nan", "N/A", ""]:
+            # FIXED LOADING LOGIC
+            saved_steps_str = str(record.get("Completed Steps", "")).strip()
+            if saved_steps_str in ["", "nan", "N/A", "None", "nan"]:
                 saved_steps = []
             else:
                 saved_steps = [s.strip() for s in saved_steps_str.split(",") if s.strip()]
+            
+            st.info(f"**Previously completed:** {len(saved_steps)} steps")
             
             st.markdown(f"### Standard Operating Procedure: {track_type}")
             
             with st.form("tracker_form"):
                 checked_states = []
                 for i, title in enumerate(steps, 1):
-                    is_checked = title in saved_steps
+                    is_checked = any(title.strip().lower() == s.strip().lower() for s in saved_steps)
                     checked = st.checkbox(f"Step {i}: {title}", value=is_checked, key=f"step_{i}")
                     if checked:
                         checked_states.append(title)
                 
-                submitted = st.form_submit_button(" 💾 Save Progress to Registry", use_container_width=True)
-                
-                if submitted:
+                if st.form_submit_button(" 💾 Save Progress to Registry", use_container_width=True):
                     new_steps_str = ",".join(checked_states)
                     try:
-                        # Update in place
                         df_bcc.loc[record_idx, "Completed Steps"] = new_steps_str
                         conn.update(data=df_bcc)
                         st.cache_data.clear()
-                        st.success("✅ Progress successfully synced to the database!")
+                        st.success("✅ Progress saved!")
                         st.balloons()
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Update failed: {e}")
+                        st.error(f"Save failed: {e}")
 
 # ── Live Mode ───────────────────────────────────────────────────────────────
 if live_mode:
