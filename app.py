@@ -10,7 +10,7 @@ import time
 # ── Page Configuration ─────────────────────────────────────────────────────
 st.set_page_config(
     page_title="BCC Town Planning & Estates Portal",
-    page_icon="city",
+    page_icon="city.png",
     layout="wide"
 )
 
