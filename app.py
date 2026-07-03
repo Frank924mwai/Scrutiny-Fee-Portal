@@ -800,7 +800,7 @@ elif current_page == "analytics":
             # --- 2. REVENUE MATRIX (Amount) ---
             # Used a divider instead of <br> to ensure consistent styling
             st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-            st.markdown("#### 💵 Revenue Matrix (MK Amount Collected)")
+            st.markdown("#### Revenue Matrix (Amount Collected)")
             
             rev_matrix = pd.crosstab(
                 index=df_chart["Category"], 
