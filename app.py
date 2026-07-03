@@ -736,6 +736,7 @@ elif current_page == "analytics":
     if df_filtered.empty:
         st.info("   📭    No applications on record for this selection.")
     else:
+        # KPI Row
         k1, k2, k3 = st.columns(3, gap="medium")
         k1.markdown(f'<div class="kpi-tile"><div class="kpi-label">Total Applications</div><div class="kpi-value">{len(df_filtered):,}</div><div class="kpi-sub">In selected view</div></div>', unsafe_allow_html=True)
         k2.markdown(f'<div class="kpi-tile"><div class="kpi-label">Total Fees Collected</div><div class="kpi-value" style="font-size:1.2rem;">MK {df_filtered["Total Fee (MK)"].sum():,.0f}</div><div class="kpi-sub">Cumulative revenue</div></div>', unsafe_allow_html=True)
@@ -747,13 +748,10 @@ elif current_page == "analytics":
 
         df_chart = df_filtered.copy()
         df_chart["Date Received"] = pd.to_datetime(df_chart["Date Received"], errors="coerce")
-
-        # IMPROVEMENT 9: Drop rows with null dates rather than falling back to
-        # today's date. The old fillna(Timestamp.today()) created phantom entries
-        # clustered on the current date whenever blank dates existed in the sheet.
         df_chart = df_chart.dropna(subset=["Date Received"])
 
         if not df_chart.empty:
+            # Data Preparation for Charts
             if time_frame == "Weekly":
                 df_chart["Period_Sort"] = df_chart["Date Received"].dt.to_period("W").dt.start_time
                 df_chart["Period"]      = df_chart["Period_Sort"].dt.strftime("%Y-%m-%d")
@@ -767,6 +765,7 @@ elif current_page == "analytics":
             df_chart = df_chart.sort_values("Period_Sort")
             summary  = df_chart.groupby(["Period", "Category"], sort=False).size().reset_index(name="Submissions Count")
 
+            # --- Visualizations ---
             col1, col2 = st.columns([1, 1], gap="medium")
             with col1:
                 fig_trend = px.bar(
@@ -774,55 +773,54 @@ elif current_page == "analytics":
                     title=f"Volume — {time_frame} View", barmode="stack",
                     height=400, color_discrete_sequence=px.colors.qualitative.Safe
                 )
-                fig_trend.update_xaxes(
-                    type="category", categoryorder="array",
-                    categoryarray=df_chart["Period"].unique(),
-                    tickangle=-35, tickfont=dict(size=11)
-                )
-                fig_trend.update_layout(
-                    autosize=True, plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-                    font=dict(size=12, color="#1A202C"), title_font=dict(size=16, color="#1B2A4A"),
-                    legend=dict(orientation="h", yanchor="top", y=-0.3, xanchor="center", x=0.5, font=dict(size=11)),
-                    margin=dict(t=50, b=80, l=40, r=20), yaxis=dict(gridcolor="#EEF0F5")
-                )
+                fig_trend.update_xaxes(type="category", tickangle=-35)
                 st.plotly_chart(fig_trend, use_container_width=True, theme=None)
 
             with col2:
                 pie_data = df_chart.groupby("Category").size().reset_index(name="Total Applications")
                 pie_data["Label"] = pie_data["Category"].str.replace(r"^\d+\.\s*", "", regex=True)
-                fig_share = px.pie(
-                    pie_data, names="Label", values="Total Applications",
-                    title="Share by Category", hole=0.35, height=400
-                )
-                fig_share.update_traces(textposition="inside", textinfo="percent", textfont_size=12)
-                fig_share.update_layout(
-                    plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-                    font=dict(size=12, color="#1A202C"), title_font=dict(size=16, color="#1B2A4A"),
-                    legend=dict(orientation="h", yanchor="top", y=-0.3, xanchor="center", x=0.5, font=dict(size=11)),
-                    margin=dict(t=50, b=80, l=20, r=20)
-                )
+                fig_share = px.pie(pie_data, names="Label", values="Total Applications", title="Share by Category", hole=0.35, height=400)
                 st.plotly_chart(fig_share, use_container_width=True, theme=None)
 
-            # --- INDENTED FIX: Volume Matrix is now safely inside the if statement ---
+            # --- 1. VOLUME MATRIX (Count) ---
             st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-            st.markdown("####    🧮    Volume Matrix (Category by Period)")
-
-            matrix_df = pd.crosstab(df_chart["Category"], df_chart["Period"])
-            ordered_cols = [col for col in df_chart["Period"].unique() if col in matrix_df.columns]
-            matrix_df = matrix_df[ordered_cols]
-            matrix_df["Total"] = matrix_df.sum(axis=1)
-            matrix_df.loc["Grand Total"] = matrix_df.sum(axis=0)
-
-            styled_matrix = matrix_df.style.background_gradient(
-                cmap="Blues", axis=None, subset=(matrix_df.index[:-1], matrix_df.columns[:-1])
+            st.markdown("#### 🧮 Volume Matrix (Number of Applications)")
+            
+            vol_matrix = pd.crosstab(df_chart["Category"], df_chart["Period"])
+            ordered_cols = [col for col in df_chart["Period"].unique() if col in vol_matrix.columns]
+            vol_matrix = vol_matrix[ordered_cols]
+            vol_matrix["Total"] = vol_matrix.sum(axis=1)
+            vol_matrix.loc["Grand Total"] = vol_matrix.sum(axis=0)
+            
+            styled_vol = vol_matrix.style.background_gradient(
+                cmap="Blues", axis=None, subset=(vol_matrix.index[:-1], vol_matrix.columns[:-1])
             ).format("{:,.0f}")
-            st.dataframe(styled_matrix, use_container_width=True)
+            st.dataframe(styled_vol, use_container_width=True)
+
+            # --- 2. REVENUE MATRIX (Amount) ---
+            st.markdown("<br>")
+            st.markdown("#### 💵 Revenue Matrix (MK Amount Collected)")
+            
+            rev_matrix = pd.crosstab(
+                index=df_chart["Category"], 
+                columns=df_chart["Period"],
+                values=df_chart["Total Fee (MK)"],
+                aggfunc="sum"
+            ).fillna(0)
+            
+            rev_matrix = rev_matrix[ordered_cols]
+            rev_matrix["Total"] = rev_matrix.sum(axis=1)
+            rev_matrix.loc["Grand Total"] = rev_matrix.sum(axis=0)
+            
+            styled_rev = rev_matrix.style.background_gradient(
+                cmap="Greens", axis=None, subset=(rev_matrix.index[:-1], rev_matrix.columns[:-1])
+            ).format("{:,.2f}")
+            st.dataframe(styled_rev, use_container_width=True)
         
         else:
-            # --- ADDED: Fallback if all dates are empty ---
             st.info("   📭    No valid dates found in the data to process time-series trends.")
 
-        # --- OUTSIDE the if-statement: We still show the registry even if dates are bad ---
+        # --- Application Registry ---
         st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
         st.markdown("####    📋    Application Registry")
         search_query = st.text_input(
