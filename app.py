@@ -26,7 +26,6 @@ div[data-testid="stRadio"] label div[data-testid="stMarkdownContainer"] p {
     font-weight: 500 !important;
 }
 h3 { color: #1E65B5 !important; }
-
 :root {
     --navy: #1E65B5;
     --gold: #C49A2A;
@@ -38,6 +37,43 @@ h3 { color: #1E65B5 !important; }
 }
 .stApp { background-color: var(--bg); }
 
+/* Prevent mobile browser native password eye icon overrides from stacking with Streamlit */
+input::-ms-reveal, 
+input::-ms-clear, 
+input::-webkit-credentials-hidden-button,
+input::-webkit-password-toggle {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* ── SIDEBAR TOGGLE CUSTOMIZATION (3-DASHES) ── */
+/* Hide default Streamlit open/close arrow SVGs */
+button[data-testid="stSidebarCollapseButton"] svg, 
+div[data-testid="collapsedControl"] button svg {
+    display: none !important;
+}
+
+/* Inject the 3-Dashes (Hamburger) symbol */
+button[data-testid="stSidebarCollapseButton"]::before,
+div[data-testid="collapsedControl"] button::before {
+    content: "☰" !important;
+    font-size: 22px !important;
+    font-weight: bold !important;
+    display: inline-block;
+}
+
+/* Color when sidebar is CLOSED */
+div[data-testid="collapsedControl"] button::before {
+    color: #1A202C !important;
+}
+
+/* Color when sidebar is OPEN */
+button[data-testid="stSidebarCollapseButton"]::before {
+    color: #E8EDF5 !important;
+}
+/* ───────────────────────────────────────────── */
+
 /* Sidebar Component Adjustments */
 [data-testid="stSidebar"] { background-color: var(--navy) !important; }
 [data-testid="stSidebar"] * { color: #E8EDF5 !important; }
@@ -48,12 +84,11 @@ div.stButton > button {
     color: #FFFFFF !important;
     border: none !important;
     border-radius: 6px !important;
-    padding: 12px 24px !important; /* Increased for mobile touch fidelity */
+    padding: 12px 24px !important;
     font-weight: 600 !important;
-    min-height: 48px; /* Standard mobile touch-target lower bound */
+    min-height: 48px;
 }
 div.stButton > button:hover { background-color: #243660 !important; }
-
 [data-testid="stTextInput"] div[data-baseweb="input"] > div,
 [data-testid="stNumberInput"] div[data-baseweb="input"] > div,
 [data-testid="stDateInput"] div[data-baseweb="input"] > div,
@@ -62,7 +97,6 @@ div.stButton > button:hover { background-color: #243660 !important; }
     border: 1px solid #DDE3EE !important;
     min-height: 44px;
 }
-
 [data-testid="stTextInput"] input,
 [data-testid="stNumberInput"] input,
 [data-testid="stDateInput"] input,
@@ -70,14 +104,7 @@ div.stButton > button:hover { background-color: #243660 !important; }
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
 }
-
-/* Checkbox and Touch Layout Safety */
-div[data-testid="stCheckbox"] {
-    padding: 6px 0;
-    margin-bottom: 4px;
-}
-
-/* Desktop UI Component Baselines */
+div[data-testid="stCheckbox"] { padding: 6px 0; margin-bottom: 4px; }
 .portal-header { background-color: #1E65B5; border-radius: 8px; border-bottom: 4px solid #C49A2A; padding: 22px 26px; margin-bottom: 24px; width: 100%; box-sizing: border-box; }
 .portal-title { margin: 0 0 14px 0; color: #FFFFFF !important; font-weight: 700; font-size: 1.35rem; letter-spacing: 0.04em; line-height: 1.3; text-transform: uppercase; }
 .card-title { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
@@ -90,8 +117,6 @@ div[data-testid="stCheckbox"] {
 .fee-result .fee-amount { color: #FFFFFF; font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; word-break: break-all; }
 .fee-result .fee-note { color: var(--gold); font-size: 0.78rem; margin-top: 6px; }
 .bcc-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
-
-/* Dynamic Responsive Override Layer (Mobile Breakpoint) */
 @media (max-width: 768px) {
     .portal-header { padding: 14px 16px; margin-bottom: 16px; }
     .portal-title { font-size: 1.05rem; margin-bottom: 10px; }
@@ -107,21 +132,23 @@ div[data-testid="stCheckbox"] {
 # ── Authentication ─────────────────────────────────────────────────────────
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
-
 if not st.session_state["authenticated"]:
-    _, login_col, _ = st.columns([1, 2, 1]) # Slightly wider on mid-size tablet screens
+    _, login_col, _ = st.columns([1, 2, 1]) 
     with login_col:
         with st.container(border=True):
             st.markdown("<h3 style='text-align: center; margin-top: 0; margin-bottom: 20px;'>Secure Registry Authentication</h3>", unsafe_allow_html=True)
-            password_input = st.text_input("Internal Access Password", type="password", placeholder="Enter password")
-            submit_auth = st.button("Verify Credentials", use_container_width=True)
+            # FIX: Wrapped in st.form to capture "Enter" key press events
+            with st.form("auth_form"):
+                password_input = st.text_input("Internal Access Password", type="password", placeholder="Enter password")
+                submit_auth = st.form_submit_button("Verify Credentials", use_container_width=True)
+                
             if submit_auth:
                 try:
                     correct_password = st.secrets["auth"]["password"]
                 except Exception:
                     st.error("   ❌    Secrets not configured. Contact administrator.")
                     correct_password = None
-
+                    
                 if correct_password and password_input == correct_password:
                     st.session_state["authenticated"] = True
                     st.session_state.prev_page = "calculator"
@@ -194,7 +221,6 @@ BCC_RATES = {
         "Kiosks for Mobile Money": {"rate": 190000.00, "unit": "fixed_fee"},
     },
 }
-
 ESTATES_FEES = {
     "Application Forms": {
         "Residential Plot (THA)": {"rate": 30000.00, "unit": "fixed_fee"},
@@ -238,7 +264,6 @@ ESTATES_FEES = {
         "Survey drawing & computation fees (0.036ha)": {"rate": 150000.00, "unit": "qty_based"},
     }
 }
-
 RATE_04_CATS = {"Residential", "Institutional", "Industrial Development", "Office/Commercial Development", "Fences"}
 COLUMNS = ["Application ID", "Date Received", "Applicant Name", "Plot Number", "Department",
            "Category", "Development Type", "Dimension/Qty", "Est. Cost (MK)", "Total Fee (MK)", "Completed Steps"]
@@ -269,7 +294,6 @@ def _calc_raw_base_fee(dept: str, category: str, rate_info: dict, qty: float, pr
 
 # ── Cloud Data Synchronizer ───────────────────────────────────────────────
 conn = st.connection("gsheets", type=GSheetsConnection)
-
 @st.cache_data(ttl=5)
 def load_data() -> pd.DataFrame:
     try:
@@ -304,14 +328,11 @@ PAGE_MAP = {
 selected_label = st.sidebar.radio("Navigate to:", list(PAGE_MAP.keys()), key="sidebar_nav")
 current_page = PAGE_MAP[selected_label]
 
-# Page Layout Interlocking State Rules
+# FIX: Streamlit automatically clears memory state for unrendered widgets. 
+# Removed the manual loop deletion to prevent component unmount errors.
 if "prev_page" not in st.session_state:
     st.session_state.prev_page = current_page
-
 if st.session_state.prev_page != current_page:
-    keys_to_clear = [k for k in st.session_state.keys() if k.startswith(("calc_", "intake_", "trend_", "dept_"))]
-    for k in keys_to_clear:
-        if k in st.session_state: del st.session_state[k]
     st.session_state.prev_page = current_page
     st.rerun()
 
@@ -320,7 +341,6 @@ st.sidebar.markdown("###    ⚙️    DASHBOARD CONTROLS")
 live_mode = st.sidebar.toggle("   🔄    Enable Real-Time Live View", value=False)
 if live_mode:
     refresh_rate = st.sidebar.slider("Refresh Interval (seconds)", 5, 60, 10)
-
 st.sidebar.markdown("---")
 st.sidebar.caption("Blantyre City Council · Town Planning & Estates")
 
@@ -457,10 +477,12 @@ if current_page == "calculator":
                 '</div>'
                 )
                 st.markdown(addon_html, unsafe_allow_html=True)
-                
+            
+            # FIX: Harmonized dynamic fee label
+            invoice_fee_label = "Total Scrutiny Fee Payable" if dept_choice == "Town Planning (Scrutiny)" else "Total Estates Fee Payable"
             st.markdown(f"""
             <div class="fee-result">
-            <div class="fee-label">Total Invoice Amount Payable</div>
+            <div class="fee-label">{invoice_fee_label}</div>
             <div class="fee-amount">MK {total_fee_due:,.2f}</div>
             <div class="fee-note">Reflects calculations for {dept_choice} procedures.</div>
             </div>
@@ -501,7 +523,10 @@ elif current_page == "intake":
     with st.container(border=True):
         st.markdown('<div class="card-title">Financial Metrics Input</div>', unsafe_allow_html=True)
         rate_info = target_dict[intake_category][intake_subcategory]
-        input_fee_paid = st.number_input("Total Amount Received on Receipt (MK)", min_value=0.0, step=5000.0, key="intake_fee")
+        
+        # FIX: Clarified dynamic fee label input
+        intake_input_label = "Total Scrutiny Fee Received on Receipt (MK)" if intake_dept == "Town Planning (Scrutiny)" else "Total Estates Fee Received on Receipt (MK)"
+        input_fee_paid = st.number_input(intake_input_label, min_value=0.0, step=5000.0, key="intake_fee")
         is_tp = (intake_dept == "Town Planning (Scrutiny)")
         
         st.markdown("<div style='font-size:0.80rem; color:#6B7A96; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-top:15px; margin-bottom:5px;'>Check items included in this receipt total:</div>", unsafe_allow_html=True)
@@ -565,10 +590,16 @@ elif current_page == "intake":
                     "Completed Steps": ""
                 }
                 
-                try: df_existing = conn.read(ttl=0)
-                except Exception: df_existing = pd.DataFrame(columns=COLUMNS)
+                try: 
+                    df_existing = conn.read(ttl=0)
+                except Exception: 
+                    df_existing = pd.DataFrame(columns=COLUMNS)
                     
                 df_updated = pd.concat([df_existing, pd.DataFrame([new_row])], ignore_index=True)
+                
+                # FIX: Force strict string normalization on Date column before DB upload
+                df_updated["Date Received"] = pd.to_datetime(df_updated["Date Received"], errors='coerce').dt.strftime("%Y-%m-%d")
+                
                 conn.update(data=df_updated)
                 st.cache_data.clear()
                 st.success(f"   ✅    Record for **{applicant_name.strip()}** appended securely.")
@@ -602,21 +633,39 @@ elif current_page == "analytics":
         df_chart["Date Received"] = pd.to_datetime(df_chart["Date Received"], errors='coerce').fillna(pd.Timestamp.today())
         
         if not df_chart.empty:
-            if time_frame == "Weekly": df_chart["Period"] = df_chart["Date Received"].dt.to_period("W").dt.start_time.dt.strftime('%Y-%m-%d')
-            elif time_frame == "Monthly": df_chart["Period"] = df_chart["Date Received"].dt.to_period("M").dt.start_time.dt.strftime('%b %Y')
-            else: df_chart["Period"] = df_chart["Date Received"].dt.to_period("Q").astype(str)
+            # FIX: Extract sortable date bounds to prevent alphabetical sorting by Plotly
+            if time_frame == "Weekly": 
+                df_chart["Period_Sort"] = df_chart["Date Received"].dt.to_period("W").dt.start_time
+                df_chart["Period"] = df_chart["Period_Sort"].dt.strftime('%Y-%m-%d')
+            elif time_frame == "Monthly": 
+                df_chart["Period_Sort"] = df_chart["Date Received"].dt.to_period("M").dt.start_time
+                df_chart["Period"] = df_chart["Period_Sort"].dt.strftime('%b %Y')
+            else: 
+                df_chart["Period_Sort"] = df_chart["Date Received"].dt.to_period("Q").dt.start_time
+                df_chart["Period"] = df_chart["Date Received"].dt.to_period("Q").astype(str)
                 
-            summary = df_chart.groupby(["Period", "Category"]).size().reset_index(name="Submissions Count")
+            # Guarantee the dataframe handles chronological tracking
+            df_chart = df_chart.sort_values("Period_Sort")
+            summary = df_chart.groupby(["Period", "Category"], sort=False).size().reset_index(name="Submissions Count")
             
-            col1, col2 = st.columns([1, 1], gap="medium") # Balanced column layout for cleaner mobile grid stacks
+            col1, col2 = st.columns([1, 1], gap="medium") 
             with col1:
                 fig_trend = px.bar(
                     summary, x="Period", y="Submissions Count", color="Category",
                     title=f"Volume — {time_frame} View", barmode="stack", 
-                    height=400, # Compressed from 580 to prevent excessive vertical space usage on mobile devices
+                    height=400, 
                     color_discrete_sequence=px.colors.qualitative.Safe
                 )
-                fig_trend.update_xaxes(type='category', tickangle=-35, tickfont=dict(size=11))
+                
+                # Apply explicit visual sorting using the chronologically ordered keys
+                fig_trend.update_xaxes(
+                    type='category', 
+                    categoryorder='array', 
+                    categoryarray=df_chart["Period"].unique(), 
+                    tickangle=-35, 
+                    tickfont=dict(size=11)
+                )
+                
                 fig_trend.update_layout(
                     autosize=True, plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
                     font=dict(size=12, color="#1A202C"), title_font=dict(size=16, color="#1B2A4A"),
@@ -630,7 +679,7 @@ elif current_page == "analytics":
                 pie_data["Label"] = pie_data["Category"].str.replace(r"^\d+\.\s*", "", regex=True)
                 fig_share = px.pie(
                     pie_data, names="Label", values="Total Applications",
-                    title="Share by Category", hole=0.35, height=400 # Adjusted height balance
+                    title="Share by Category", hole=0.35, height=400 
                 )
                 fig_share.update_traces(textposition="inside", textinfo="percent", textfont_size=12)
                 fig_share.update_layout(
@@ -645,6 +694,9 @@ elif current_page == "analytics":
         st.markdown("####    🧮    Volume Matrix (Category by Period)")
         
         matrix_df = pd.crosstab(df_chart["Category"], df_chart["Period"])
+        # Re-order columns chronologically for visual alignment 
+        ordered_cols = [col for col in df_chart["Period"].unique() if col in matrix_df.columns]
+        matrix_df = matrix_df[ordered_cols]
         matrix_df["Total"] = matrix_df.sum(axis=1)
         matrix_df.loc["Grand Total"] = matrix_df.sum(axis=0)
         
@@ -734,20 +786,28 @@ elif current_page == "tracker":
                 
                 if submitted:
                     new_steps_str = ",".join(checked_states)
-                    try: df_fresh = conn.read(ttl=0)
-                    except Exception: df_fresh = df_bcc.copy()
+                    try: 
+                        df_fresh = conn.read(ttl=0)
+                    except Exception: 
+                        df_fresh = df_bcc.copy()
                         
                     app_id_target = record["Application ID"]
                     fresh_match_idx = df_fresh[df_fresh["Application ID"].astype(str).str.upper() == str(app_id_target).upper()].index
                     
-                    if len(fresh_match_idx) > 0: df_fresh.at[fresh_match_idx[0], "Completed Steps"] = new_steps_str
-                    else: df_fresh.at[record_idx, "Completed Steps"] = new_steps_str
-                        
-                    conn.update(data=df_fresh)
-                    st.cache_data.clear()
-                    st.success("  ✅   Progress successfully synced to the database!")
-                    st.balloons()
-                    st.rerun()
+                    # FIX: Handled the severe data overwrite hazard if record lookup fails mid-session
+                    if len(fresh_match_idx) > 0: 
+                        df_fresh.at[fresh_match_idx[0], "Completed Steps"] = new_steps_str
+                        # Normalize date layout string right before saving tracker update
+                        df_fresh["Date Received"] = pd.to_datetime(df_fresh["Date Received"], errors='coerce').dt.strftime("%Y-%m-%d")
+                            
+                        conn.update(data=df_fresh)
+                        st.cache_data.clear()
+                        st.success("  ✅   Progress successfully synced to the database!")
+                        st.balloons()
+                        time.sleep(1.5) # Give slight visual delay for user to read success message before UI reruns
+                        st.rerun()
+                    else: 
+                        st.error("  ❌   Sync Error: The original application record could not be found in the database. It may have been deleted by another user. Please refresh the page.")
 
 # ── Live Execution Framework Thread ─────────────────────────────────────────
 if live_mode and current_page == "analytics":
