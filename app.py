@@ -803,20 +803,26 @@ elif current_page == "analytics":
                 )
                 st.plotly_chart(fig_share, use_container_width=True, theme=None)
 
-        st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-        st.markdown("####    🧮    Volume Matrix (Category by Period)")
+            # --- INDENTED FIX: Volume Matrix is now safely inside the if statement ---
+            st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
+            st.markdown("####    🧮    Volume Matrix (Category by Period)")
 
-        matrix_df = pd.crosstab(df_chart["Category"], df_chart["Period"])
-        ordered_cols = [col for col in df_chart["Period"].unique() if col in matrix_df.columns]
-        matrix_df = matrix_df[ordered_cols]
-        matrix_df["Total"] = matrix_df.sum(axis=1)
-        matrix_df.loc["Grand Total"] = matrix_df.sum(axis=0)
+            matrix_df = pd.crosstab(df_chart["Category"], df_chart["Period"])
+            ordered_cols = [col for col in df_chart["Period"].unique() if col in matrix_df.columns]
+            matrix_df = matrix_df[ordered_cols]
+            matrix_df["Total"] = matrix_df.sum(axis=1)
+            matrix_df.loc["Grand Total"] = matrix_df.sum(axis=0)
 
-        styled_matrix = matrix_df.style.background_gradient(
-            cmap="Blues", axis=None, subset=(matrix_df.index[:-1], matrix_df.columns[:-1])
-        ).format("{:,.0f}")
-        st.dataframe(styled_matrix, use_container_width=True)
+            styled_matrix = matrix_df.style.background_gradient(
+                cmap="Blues", axis=None, subset=(matrix_df.index[:-1], matrix_df.columns[:-1])
+            ).format("{:,.0f}")
+            st.dataframe(styled_matrix, use_container_width=True)
+        
+        else:
+            # --- ADDED: Fallback if all dates are empty ---
+            st.info("   📭    No valid dates found in the data to process time-series trends.")
 
+        # --- OUTSIDE the if-statement: We still show the registry even if dates are bad ---
         st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
         st.markdown("####    📋    Application Registry")
         search_query = st.text_input(
