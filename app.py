@@ -782,7 +782,7 @@ elif current_page == "analytics":
                 fig_share = px.pie(pie_data, names="Label", values="Total Applications", title="Share by Category", hole=0.35, height=400)
                 st.plotly_chart(fig_share, use_container_width=True, theme=None)
 
-            # --- 1. VOLUME MATRIX (Count) ---
+          # --- 1. VOLUME MATRIX (Count) ---
             st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
             st.markdown("#### 🧮 Volume Matrix (Number of Applications)")
             
@@ -798,7 +798,8 @@ elif current_page == "analytics":
             st.dataframe(styled_vol, use_container_width=True)
 
             # --- 2. REVENUE MATRIX (Amount) ---
-            st.markdown("<br>")
+            # Used a divider instead of <br> to ensure consistent styling
+            st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
             st.markdown("#### 💵 Revenue Matrix (MK Amount Collected)")
             
             rev_matrix = pd.crosstab(
@@ -812,8 +813,9 @@ elif current_page == "analytics":
             rev_matrix["Total"] = rev_matrix.sum(axis=1)
             rev_matrix.loc["Grand Total"] = rev_matrix.sum(axis=0)
             
+            # Updated to "Blues" to match the Volume Matrix
             styled_rev = rev_matrix.style.background_gradient(
-                cmap="Greens", axis=None, subset=(rev_matrix.index[:-1], rev_matrix.columns[:-1])
+                cmap="Blues", axis=None, subset=(rev_matrix.index[:-1], rev_matrix.columns[:-1])
             ).format("{:,.2f}")
             st.dataframe(styled_rev, use_container_width=True)
         
