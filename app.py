@@ -574,13 +574,18 @@ elif current_page == "intake":
         st.success(st.session_state.pop("intake_success_msg"))
         st.balloons()
 
+    # --- DYNAMIC FORM RESET TRICK ---
+    # We use this counter to force the form to rebuild itself empty ONLY on success.
+    if "form_reset_key" not in st.session_state:
+        st.session_state["form_reset_key"] = 0
+
     # Define department outside the form so the conditional logic works
     intake_dept = st.radio("Select Department", ["Town Planning (Scrutiny)", "Estates Services"], horizontal=True)
     target_dict = BCC_RATES if intake_dept == "Town Planning (Scrutiny)" else ESTATES_FEES
 
     # --- FORM WRAPPER ---
-    # clear_on_submit=True automatically wipes the fields after a successful submission
-    with st.form("intake_form", clear_on_submit=True):
+    # clear_on_submit is now False! Hitting Enter will validate, but NOT wipe your data.
+    with st.form(f"intake_form_{st.session_state['form_reset_key']}", clear_on_submit=False):
         col1, col2 = st.columns(2, gap="medium")
         
         with col1:
@@ -622,7 +627,7 @@ elif current_page == "intake":
 
     # --- PROCESSING LOGIC (Outside the form) ---
     if submit_btn:
-        # 1. Validation
+        # 1. Validation - If you hit Enter early, it shows this error but KEEPS your text!
         if not app_id.strip() or not applicant_name.strip() or not plot_number.strip():
             st.error("❌ Please fill in all required fields (ID, Applicant, Plot).")
         else:
@@ -651,7 +656,7 @@ elif current_page == "intake":
             # 3. Database Write
             new_row = {
                 "Application ID": app_id.strip().upper(),
-                "Date Received": date_rcvd.strftime("%Y-%m-%d"),
+                "Date Received": date_rcvd.strftime("%d/%m/%Y"), # Updated to DD/MM/YYYY
                 "Applicant Name": applicant_name.strip(),
                 "Plot Number": plot_number.strip(),
                 "Department": intake_dept,
@@ -671,7 +676,12 @@ elif current_page == "intake":
                 
                 st.cache_data.clear()
                 st.session_state["intake_success_msg"] = f"✅ Record for **{applicant_name.strip()}** appended securely."
-                st.rerun() # Rerun to clear fields via form
+                
+                # --- THE MAGIC WIPE ---
+                # We add 1 to the key. On rerun, Streamlit sees a brand new form ID and builds it blank!
+                st.session_state["form_reset_key"] += 1
+                st.rerun() 
+                
             except Exception as e:
                 st.error(f"❌ Registry write failed: {e}")
 
