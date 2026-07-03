@@ -569,153 +569,111 @@ elif current_page == "intake":
     st.markdown("##    📥    NEW APPLICATION INTAKE")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
 
-    if "intake_app_id"   not in st.session_state: st.session_state["intake_app_id"]   = ""
-    if "intake_applicant" not in st.session_state: st.session_state["intake_applicant"] = ""
-    if "intake_plot"     not in st.session_state: st.session_state["intake_plot"]     = ""
-    if "intake_fee"      not in st.session_state: st.session_state["intake_fee"]      = 50000.0
-
-    def clear_intake_data():
-        st.session_state["intake_app_id"]   = ""
-        st.session_state["intake_applicant"] = ""
-        st.session_state["intake_plot"]     = ""
-        st.session_state["intake_fee"]      = 50000.0
-
-    # IMPROVEMENT 5: Persistent success banner that survives st.rerun().
-    # After a successful save we store the message in session_state, call
-    # clear_intake_data(), then rerun — the banner displays on the fresh page
-    # and is popped so it only shows once.
-    if st.session_state.get("intake_success_msg"):
-        msg = st.session_state.pop("intake_success_msg")
-        st.success(msg)
+    # Persistent success banner logic
+    if "intake_success_msg" in st.session_state:
+        st.success(st.session_state.pop("intake_success_msg"))
         st.balloons()
 
-    intake_dept  = st.radio("Select Department", ["Town Planning (Scrutiny)", "Estates Services"], horizontal=True, key="intake_dept")
-    target_dict  = BCC_RATES if intake_dept == "Town Planning (Scrutiny)" else ESTATES_FEES
+    # Define department outside the form so the conditional logic works
+    intake_dept = st.radio("Select Department", ["Town Planning (Scrutiny)", "Estates Services"], horizontal=True)
+    target_dict = BCC_RATES if intake_dept == "Town Planning (Scrutiny)" else ESTATES_FEES
 
-    col1, col2 = st.columns(2, gap="medium")
-    with col1:
-        app_id         = st.text_input("Application / File ID", placeholder="e.g., BCC/TP/2026/250", key="intake_app_id")
-        applicant_name = st.text_input("Applicant Name / Developer Entity", key="intake_applicant")
-        # Date widget — value is always captured; _fmt_date_col() ensures it
-        # survives the Google Sheets write without becoming "NaT" in the sheet.
-        date_rcvd      = st.date_input("Date Received", value=datetime.today(), key="intake_date")
-    with col2:
-        plot_number       = st.text_input("Plot Number / Parcel ID", key="intake_plot")
-        intake_category   = st.selectbox("Category", list(target_dict.keys()), key="intake_cat")
-        intake_subcategory = st.selectbox("Development Type", list(target_dict[intake_category].keys()), key="intake_sub")
+    # --- FORM WRAPPER ---
+    # clear_on_submit=True automatically wipes the fields after a successful submission
+    with st.form("intake_form", clear_on_submit=True):
+        col1, col2 = st.columns(2, gap="medium")
+        
+        with col1:
+            app_id = st.text_input("Application / File ID", placeholder="e.g., BCC/TP/2026/250")
+            applicant_name = st.text_input("Applicant Name / Developer Entity")
+            date_rcvd = st.date_input("Date Received", value=datetime.today())
+        
+        with col2:
+            plot_number = st.text_input("Plot Number / Parcel ID")
+            intake_category = st.selectbox("Category", list(target_dict.keys()))
+            intake_subcategory = st.selectbox("Development Type", list(target_dict[intake_category].keys()))
 
-    st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    with st.container(border=True):
         st.markdown('<div class="card-title">Financial Metrics Input</div>', unsafe_allow_html=True)
-        rate_info = target_dict[intake_category][intake_subcategory]
-
-        # IMPROVEMENT 6: Neutral receipt label.
-        # "Total Amount Received on Receipt" covers the full payment including
-        # the scrutiny/estates fee AND any additional charges on the same receipt.
-        # The checkboxes below then let staff itemise what is bundled in,
-        # and the net fee is derived automatically — removing the old ambiguity
-        # of a label that said "Scrutiny Fee" for what was actually a mixed total.
-        intake_input_label = "Total Amount Received on Receipt (MK)"
-        input_fee_paid = st.number_input(intake_input_label, min_value=0.0, step=5000.0, key="intake_fee")
+        input_fee_paid = st.number_input("Total Amount Received on Receipt (MK)", min_value=0.0, step=5000.0)
+        
+        # Checkboxes inside the form
         is_tp = (intake_dept == "Town Planning (Scrutiny)")
+        
+        # Only show checkboxes if TP
+        intake_inc_app = False
+        intake_inc_site = False
+        intake_inc_septic = False
+        intake_inc_sewer = False
+        intake_inc_parking = False
 
-        st.markdown(
-            "<div style='font-size:0.80rem;color:#6B7A96;font-weight:700;text-transform:uppercase;"
-            "letter-spacing:0.05em;margin-top:15px;margin-bottom:5px;'>"
-            "Check items included in this receipt total:</div>",
-            unsafe_allow_html=True
-        )
-
-        bundle_col1, bundle_col2, bundle_col3 = st.columns([1, 1, 1])
-        with bundle_col1:
-            intake_inc_app  = st.checkbox("Base App Fee (MK 15,000)",     value=True,  disabled=not is_tp, key="inc_app")
-            intake_inc_site = st.checkbox("Site Plan Cert. (MK 15,000)",  value=False, disabled=not is_tp, key="inc_site")
-        with bundle_col2:
-            intake_inc_septic = st.checkbox("Septic Tank (MK 40,000)",    value=False, disabled=not is_tp, key="inc_septic")
-            intake_inc_sewer  = st.checkbox("Sewer App Fee (MK 100,000)", value=False, disabled=not is_tp, key="inc_sewer")
-        with bundle_col3:
-            intake_inc_parking = st.checkbox("Car Parking (MK 280,000)",  value=False, disabled=not is_tp, key="inc_parking")
-
-        deductions = 0.0
         if is_tp:
-            if intake_inc_app:     deductions += BCC_RATES["Advertising"]["Application Fee"]["rate"]
-            if intake_inc_septic:  deductions += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
-            if intake_inc_site:    deductions += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
-            if intake_inc_parking: deductions += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
-            if intake_inc_sewer:   deductions += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
+            st.markdown("Check items included in this receipt:")
+            b1, b2, b3 = st.columns(3)
+            with b1:
+                intake_inc_app = st.checkbox("Base App Fee (MK 15,000)", value=True)
+                intake_inc_site = st.checkbox("Site Plan Cert. (MK 15,000)")
+            with b2:
+                intake_inc_septic = st.checkbox("Septic Tank (MK 40,000)")
+                intake_inc_sewer = st.checkbox("Sewer App Fee (MK 100,000)")
+            with b3:
+                intake_inc_parking = st.checkbox("Car Parking (MK 280,000)")
 
-        # Live net-fee preview so staff can verify before submitting
-        if is_tp and deductions > 0:
-            net_preview = max(0.0, input_fee_paid - deductions)
-            st.caption(f"Net Scrutiny Fee (total − deductions):  **MK {net_preview:,.2f}**")
+        submit_btn = st.form_submit_button("📄 Append Entry to Registry", use_container_width=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        btn_col1, btn_col2 = st.columns(2)
-        with btn_col1:
-            submit_btn = st.button("   📄    Append Entry to Registry", use_container_width=True)
-        with btn_col2:
-            st.button("   🧹    Clear Data", use_container_width=True, on_click=clear_intake_data)
+    # --- PROCESSING LOGIC (Outside the form) ---
+    if submit_btn:
+        # 1. Validation
+        if not app_id.strip() or not applicant_name.strip() or not plot_number.strip():
+            st.error("❌ Please fill in all required fields (ID, Applicant, Plot).")
+        else:
+            # 2. Calculation
+            deductions = 0.0
+            if is_tp:
+                if intake_inc_app: deductions += BCC_RATES["Advertising"]["Application Fee"]["rate"]
+                if intake_inc_septic: deductions += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
+                if intake_inc_site: deductions += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
+                if intake_inc_parking: deductions += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
+                if intake_inc_sewer: deductions += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
+            
+            net_fee = max(0.0, input_fee_paid - deductions)
+            rate_info = target_dict[intake_category][intake_subcategory]
 
-        if submit_btn:
-            errors = []
-            if not app_id.strip():         errors.append("Application ID Reference Number is required.")
-            if not applicant_name.strip(): errors.append("Applicant Name is required.")
-            if not plot_number.strip():    errors.append("Plot Number is required.")
-
-            if errors:
-                for e in errors:
-                    st.error(f"   ❌    {e}")
+            if intake_dept == "Town Planning (Scrutiny)" and (intake_category in RATE_04_CATS):
+                calc_est_cost = net_fee / 0.004
+                derived_dimension = calc_est_cost / rate_info["rate"] if rate_info["rate"] > 0 else 0.0
+            elif rate_info["unit"] in ["percentage_of_final_cost", "market_value"]:
+                calc_est_cost = net_fee / rate_info["rate"] if rate_info["rate"] > 0 else 0.0
+                derived_dimension = calc_est_cost
             else:
-                net_fee = max(0.0, input_fee_paid - deductions)
-                if intake_dept == "Town Planning (Scrutiny)" and (intake_category in RATE_04_CATS):
-                    calc_est_cost    = net_fee / 0.004
-                    derived_dimension = calc_est_cost / rate_info["rate"] if rate_info["rate"] > 0 else 0.0
-                elif rate_info["unit"] in ["percentage_of_final_cost", "market_value"]:
-                    calc_est_cost    = net_fee / rate_info["rate"] if rate_info["rate"] > 0 else 0.0
-                    derived_dimension = calc_est_cost
-                else:
-                    calc_est_cost    = 0.0
-                    derived_dimension = net_fee / rate_info["rate"] if rate_info["rate"] > 0 else 1.0
+                calc_est_cost = 0.0
+                derived_dimension = net_fee / rate_info["rate"] if rate_info["rate"] > 0 else 1.0
 
-                new_row = {
-                    "Application ID":   app_id.strip().upper(),
-                    "Date Received":    date_rcvd.strftime("%Y-%m-%d"),   # always a valid date string
-                    "Applicant Name":   applicant_name.strip(),
-                    "Plot Number":      plot_number.strip(),
-                    "Department":       intake_dept,
-                    "Category":         intake_category,
-                    "Development Type": intake_subcategory,
-                    "Dimension/Qty":    round(derived_dimension, 2),
-                    "Est. Cost (MK)":   round(calc_est_cost, 2),
-                    "Total Fee (MK)":   input_fee_paid,
-                    "Completed Steps":  "",
-                }
+            # 3. Database Write
+            new_row = {
+                "Application ID": app_id.strip().upper(),
+                "Date Received": date_rcvd.strftime("%Y-%m-%d"),
+                "Applicant Name": applicant_name.strip(),
+                "Plot Number": plot_number.strip(),
+                "Department": intake_dept,
+                "Category": intake_category,
+                "Development Type": intake_subcategory,
+                "Dimension/Qty": round(derived_dimension, 2),
+                "Est. Cost (MK)": round(calc_est_cost, 2),
+                "Total Fee (MK)": input_fee_paid,
+                "Completed Steps": "",
+            }
 
-                try:
-                    df_existing = conn.read(ttl=0)
-                except Exception:
-                    df_existing = pd.DataFrame(columns=COLUMNS)
-
+            try:
+                df_existing = conn.read(ttl=0)
                 df_updated = pd.concat([df_existing, pd.DataFrame([new_row])], ignore_index=True)
-
-                # IMPROVEMENT 7: Use _fmt_date_col() instead of dt.strftime directly.
-                # dt.strftime on NaT produces the literal string "NaT" in some pandas
-                # versions, which gets written to the sheet and breaks future reads.
                 df_updated["Date Received"] = _fmt_date_col(df_updated["Date Received"])
-
-                # IMPROVEMENT 8: Error handling around conn.update() so a network
-                # or permission failure shows a clear message instead of crashing.
-                try:
-                    conn.update(data=df_updated)
-                    st.cache_data.clear()
-                    st.session_state["intake_success_msg"] = (
-                        f"   ✅    Record for **{applicant_name.strip()}** appended securely to the registry."
-                    )
-                    clear_intake_data()   # wipe form fields before rerun
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"   ❌    Registry write failed — please try again. ({e})")
-
+                conn.update(data=df_updated)
+                
+                st.cache_data.clear()
+                st.session_state["intake_success_msg"] = f"✅ Record for **{applicant_name.strip()}** appended securely."
+                st.rerun() # Rerun to clear fields via form
+            except Exception as e:
+                st.error(f"❌ Registry write failed: {e}")
 
 # ==============================================================================
 # MODULE 3 — SUBMISSION ANALYTICS
