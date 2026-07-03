@@ -712,7 +712,7 @@ elif current_page == "analytics":
             # Data Preparation for Charts
             if time_frame == "Weekly":
                 df_chart["Period_Sort"] = df_chart["Date Received"].dt.to_period("W").dt.start_time
-                df_chart["Period"]      = df_chart["Period_Sort"].dt.strftime("%Y-%m-%d")
+                df_chart["Period"]      = df_chart["Period_Sort"].dt.strftime("%d-%m-%Y")
             elif time_frame == "Monthly":
                 df_chart["Period_Sort"] = df_chart["Date Received"].dt.to_period("M").dt.start_time
                 df_chart["Period"]      = df_chart["Period_Sort"].dt.strftime("%b %Y")
