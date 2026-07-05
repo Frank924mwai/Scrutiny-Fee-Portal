@@ -323,7 +323,7 @@ def _fmt_date_col(series: pd.Series) -> pd.Series:
         return str(x).strip()
     
     return series.apply(safe_format)
-
+df_updated["Date Received"] = df_updated["Date Received"].astype(str)
 
 # ── Cloud Data Synchronizer ───────────────────────────────────────────────
 conn = st.connection("gsheets", type=GSheetsConnection)
