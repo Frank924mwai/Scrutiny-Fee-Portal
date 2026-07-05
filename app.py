@@ -44,40 +44,60 @@ st.markdown("""
         --muted: #6B7A96;
     }
 
-    /* ── MOBILE SIDEBAR TOGGLE (HAMBURGER) ── */
-    header[data-testid="stHeader"] button svg {
-        display: none !important;
-    }
-    header[data-testid="stHeader"] button::before {
-        content: " ☰ " !important;
-        font-size: 26px !important;
-        font-weight: bold !important;
-        color: #1A202C !important;
-        display: inline-block;
-        margin-top: -2px;
-    }
-    
-    /* Desktop Sidebar Toggle */
-    button[data-testid="stSidebarCollapseButton"] svg {
-        display: none !important;
-    }
-    button[data-testid="stSidebarCollapseButton"]::before {
-        content: " ☰ " !important;
-        font-size: 22px !important;
-        font-weight: bold !important;
-        color: #E8EDF5 !important;
-        display: inline-block;
-    }
+   /* ── SINGLE SIDEBAR HAMBURGER + PRESERVE THEME TOGGLE ── */
 
-    [data-testid="stSidebar"] { 
-        background-color: var(--navy) !important; 
-    }
-    [data-testid="stSidebar"] * { 
-        color: #E8EDF5 !important; 
-    }
-    [data-testid="stSidebar"] h3 { 
-        color: #FFFFFF !important; 
-    }
+/* Sidebar Collapse Button - Hamburger */
+button[data-testid="stSidebarCollapseButton"] {
+    width: 52px !important;
+    height: 52px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+button[data-testid="stSidebarCollapseButton"] svg {
+    display: none !important;
+}
+
+button[data-testid="stSidebarCollapseButton"]::before {
+    content: "☰" !important;
+    font-size: 29px !important;
+    font-weight: bold !important;
+    color: #E8EDF5 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+button[data-testid="stSidebarCollapseButton"]:hover::before {
+    color: #C49A2A !important;
+    transform: scale(1.1);
+}
+
+/* Preserve and style the Light/Dark Theme Toggle */
+header[data-testid="stHeader"] button[title="View documentation"],
+header[data-testid="stHeader"] button[aria-label*="theme"],
+header[data-testid="stHeader"] button[data-testid="stHeaderThemeToggle"] {
+    display: inline-flex !important;
+    visibility: visible !important;
+    width: 42px !important;
+    height: 42px !important;
+}
+
+/* Hide only unwanted default icons in header (but keep theme toggle) */
+header[data-testid="stHeader"] button svg:not([data-testid*="theme"]) {
+    display: none !important;
+}
+
+/* Optional: Make theme toggle more visible */
+header[data-testid="stHeader"] button[aria-label*="theme"] svg,
+header[data-testid="stHeader"] button[data-testid="stHeaderThemeToggle"] svg {
+    fill: #E8EDF5 !important;
+    stroke: #E8EDF5 !important;
+}
 
     /* ── INPUTS, BUTTONS & EYE ICON ── */
     div.stButton > button {
