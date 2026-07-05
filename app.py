@@ -44,34 +44,31 @@ st.markdown("""
         --muted: #6B7A96;
     }
 
-    /* Prevent mobile browser native password eye icon overrides from stacking with Streamlit */
-    input::-ms-reveal,
-    input::-ms-clear,
-    input::-webkit-credentials-hidden-button,
-    input::-webkit-password-toggle {
-        display: none !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-    }
-
-    /* ── SIDEBAR TOGGLE CUSTOMIZATION (3-DASHES) ── */
-    button[data-testid="stSidebarCollapseButton"] svg,
-    div[data-testid="collapsedControl"] button svg {
+    /* ── MOBILE SIDEBAR TOGGLE (HAMBURGER) ── */
+    header[data-testid="stHeader"] button svg {
         display: none !important;
     }
-    button[data-testid="stSidebarCollapseButton"]::before,
-    div[data-testid="collapsedControl"] button::before {
+    header[data-testid="stHeader"] button::before {
+        content: " ☰ " !important;
+        font-size: 26px !important;
+        font-weight: bold !important;
+        color: #1A202C !important;
+        display: inline-block;
+        margin-top: -2px;
+    }
+    
+    /* Desktop Sidebar Toggle */
+    button[data-testid="stSidebarCollapseButton"] svg {
+        display: none !important;
+    }
+    button[data-testid="stSidebarCollapseButton"]::before {
         content: " ☰ " !important;
         font-size: 22px !important;
         font-weight: bold !important;
+        color: #E8EDF5 !important;
         display: inline-block;
     }
-    div[data-testid="collapsedControl"] button::before {
-        color: #1A202C !important;
-    }
-    button[data-testid="stSidebarCollapseButton"]::before {
-        color: #E8EDF5 !important;
-    }
+
     [data-testid="stSidebar"] { 
         background-color: var(--navy) !important; 
     }
@@ -82,8 +79,10 @@ st.markdown("""
         color: #FFFFFF !important; 
     }
 
-    /* ── INPUTS & BUTTONS ── */
+    /* ── INPUTS, BUTTONS & EYE ICON ── */
     div.stButton > button {
+        -webkit-appearance: none !important; /* Blocks mobile browser dark mode buttons */
+        appearance: none !important;
         background-color: var(--navy) !important;
         color: #FFFFFF !important;
         border: none !important;
@@ -98,6 +97,14 @@ st.markdown("""
     div.stButton > button:hover { 
         background-color: #243660 !important; 
     }
+    
+    /* Force Password Eye Icon to be visible (Dark) */
+    [data-testid="stTextInput"] button svg {
+        fill: #1A202C !important;
+        stroke: #1A202C !important;
+        color: #1A202C !important;
+    }
+
     [data-testid="stTextInput"] div[data-baseweb="input"] > div,
     [data-testid="stNumberInput"] div[data-baseweb="input"] > div,
     [data-testid="stDateInput"] div[data-baseweb="input"] > div,
@@ -111,9 +118,15 @@ st.markdown("""
     [data-testid="stDateInput"] input,
     [data-testid="stSelectbox"] div[data-baseweb="select"] {
         color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important; /* Force text color on iOS */
     }
     div[data-testid="stCheckbox"] { padding: 6px 0; margin-bottom: 4px; }
+
+    /* Force Analytics DataFrame Backgrounds to White */
+    [data-testid="stDataFrame"] > div,
+    [data-testid="stTable"] > div {
+        background-color: #FFFFFF !important;
+    }
 
     /* ── CUSTOM UI COMPONENTS ── */
     .portal-header { 
@@ -377,7 +390,6 @@ def _calc_raw_base_fee(dept: str, category: str, rate_info: dict, qty: float, pr
         return est_cost, fee
 
 def _fmt_date_col(series: pd.Series) -> pd.Series:
-    """Format a date Series to 'DD/MM/YYYY' strings. More robust parsing."""
     def safe_format(x):
         if pd.isna(x) or x == "" or str(x).strip() == "":
             return ""
@@ -631,7 +643,6 @@ elif current_page == "intake":
         st.session_state["intake_fee"] = 0.0
 
     def clear_intake_data():
-        """Reset only specific primary input fields to streamline new entries."""
         st.session_state["intake_app_id"] = ""
         st.session_state["intake_applicant"] = ""
         st.session_state["intake_plot"] = ""
@@ -807,12 +818,16 @@ elif current_page == "analytics":
                     height=400, color_discrete_sequence=px.colors.qualitative.Safe
                 )
                 fig_trend.update_xaxes(type="category", tickangle=-35)
+                # Overriding Streamlit's dark mode bleed-through for charts
+                fig_trend.update_layout(plot_bgcolor="white", paper_bgcolor="white", font_color="#1A202C")
                 st.plotly_chart(fig_trend, use_container_width=True, theme=None)
                 
             with col2:
                 pie_data = df_chart.groupby("Category").size().reset_index(name="Total Applications")
                 pie_data["Label"] = pie_data["Category"].str.replace(r"^\d+\.\s*", "", regex=True)
                 fig_share = px.pie(pie_data, names="Label", values="Total Applications", title="Share by Category", hole=0.35, height=400)
+                # Overriding Streamlit's dark mode bleed-through for charts
+                fig_share.update_layout(plot_bgcolor="white", paper_bgcolor="white", font_color="#1A202C")
                 st.plotly_chart(fig_share, use_container_width=True, theme=None)
                 
             st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
