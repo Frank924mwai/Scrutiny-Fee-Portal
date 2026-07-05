@@ -309,10 +309,20 @@ def _calc_raw_base_fee(dept: str, category: str, rate_info: dict, qty: float, pr
 # existing rows have blank/null date values, which corrupted the Date column
 # on subsequent reads. Converts NaT → empty string instead.
 def _fmt_date_col(series: pd.Series) -> pd.Series:
-    """Format a date Series to 'DD/MM/YYYY' strings. NaT/null → empty string."""
-    return pd.to_datetime(series, errors="coerce").apply(
-        lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
-    )
+    """Format a date Series to 'DD/MM/YYYY' strings. More robust parsing."""
+    def safe_format(x):
+        if pd.isna(x) or x == "" or str(x).strip() == "":
+            return ""
+        try:
+            # Handle multiple formats
+            dt = pd.to_datetime(x, dayfirst=True, errors='coerce')
+            if pd.notnull(dt):
+                return dt.strftime("%d/%m/%Y")
+        except:
+            pass
+        return str(x).strip()
+    
+    return series.apply(safe_format)
 
 
 # ── Cloud Data Synchronizer ───────────────────────────────────────────────
@@ -714,7 +724,7 @@ elif current_page == "intake":
 
                 new_row = {
                     "Application ID": app_id.strip().upper(),
-                    "Date Received": date_rcvd.strftime("%d-%m-%Y"),
+                    "Date Received": date_rcvd.strftime("%d/%m/%Y"),
                     "Applicant Name": applicant_name.strip(),
                     "Plot Number": plot_number.strip(),
                     "Department": intake_dept,
