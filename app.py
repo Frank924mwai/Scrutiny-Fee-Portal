@@ -494,7 +494,7 @@ if current_page == "calculator":
     
     dept_choice = st.radio(
         "Select Department Parameter",
-        ["Town Planning Services", "Estates Services"],
+        ["Town Planning (Scrutiny)", "Estates Services"],
         horizontal=True, key="calc_dept"
     )
     target_dict = BCC_RATES if dept_choice == "Town Planning (Scrutiny)" else ESTATES_FEES
