@@ -714,7 +714,7 @@ elif current_page == "intake":
 
                 new_row = {
                     "Application ID": app_id.strip().upper(),
-                    "Date Received": date_rcvd.strftime("%Y-%m-%d"),
+                    "Date Received": date_rcvd.strftime("%d-%m-%Y"),
                     "Applicant Name": applicant_name.strip(),
                     "Plot Number": plot_number.strip(),
                     "Department": intake_dept,
