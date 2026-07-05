@@ -309,9 +309,9 @@ def _calc_raw_base_fee(dept: str, category: str, rate_info: dict, qty: float, pr
 # existing rows have blank/null date values, which corrupted the Date column
 # on subsequent reads. Converts NaT → empty string instead.
 def _fmt_date_col(series: pd.Series) -> pd.Series:
-    """Format a date Series to 'YYYY-MM-DD' strings. NaT/null → empty string."""
+    """Format a date Series to 'DD/MM/YYYY' strings. NaT/null → empty string."""
     return pd.to_datetime(series, errors="coerce").apply(
-        lambda x: x.strftime("%Y-%m-%d") if pd.notnull(x) else ""
+        lambda x: x.strftime("%d/%m/%Y") if pd.notnull(x) else ""
     )
 
 
