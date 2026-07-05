@@ -9,7 +9,7 @@ from streamlit_gsheets import GSheetsConnection
 
 # ── Page Configuration ─────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="BCC Town Planning & Estates Portal",
+    page_title="BCC Town Planning and Estates Portal",
     page_icon="city.png",
     layout="wide"
 )
