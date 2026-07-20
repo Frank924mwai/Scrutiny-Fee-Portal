@@ -26,6 +26,14 @@ st.markdown("""
         -webkit-text-size-adjust: 100% !important; /* Stops iOS/Android from resizing text */
     }
 
+    /* ── RESTORE NATIVE ICON FONTS (Fixes the "visibility" text issue on the password field) ── */
+    span[class*="material"], i[class*="material"], div[class*="material"],
+    [data-testid="stIconMaterial"], 
+    button[aria-label="Toggle password visibility"] *,
+    [data-testid="stTextInputPasswordVisibilityToggleButton"] * {
+        font-family: "Material Symbols Rounded", "Material Icons" !important;
+    }
+
     /* ── FORCE LIGHT THEME OVERRIDE ── */
     .stApp, .main, header[data-testid="stHeader"] { background-color: #F4F6FA !important; }
     div[data-testid="stMarkdownContainer"] p, div[data-testid="stMarkdownContainer"] span,
