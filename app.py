@@ -640,16 +640,31 @@ def render_calculator() -> None:
             st.caption(f"Includes {len(selected_add_ons)} selected additional fee(s).")
 
 
-def reset_intake_form() -> None:
-    prefixes = ("intake_",)
+def request_intake_form_reset() -> None:
+    """Request a reset from the button callback without touching live widgets."""
+    st.session_state["intake_reset_requested"] = True
+
+
+def apply_pending_intake_form_reset() -> bool:
+    """Clear all intake widget state before this run creates those widgets."""
+    if not st.session_state.pop("intake_reset_requested", False):
+        return False
+
     for key in list(st.session_state):
-        if key.startswith(prefixes):
+        if key.startswith("intake_") and key != "intake_success_message":
             del st.session_state[key]
+    return True
 
 
 def render_intake() -> None:
+    was_reset = apply_pending_intake_form_reset()
     st.header("New application intake")
     st.caption("Record the assessed charge and the actual amount received separately. This supports partial payments.")
+    success_message = st.session_state.pop("intake_success_message", None)
+    if success_message:
+        st.success(success_message)
+    elif was_reset:
+        st.success("The intake form has been cleared.")
 
     department = st.radio(
         "Department", (TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="intake_department"
@@ -683,7 +698,7 @@ def render_intake() -> None:
     with receipt_column:
         render_money_card("Assessed fee due", assessed_total, emphasis=True)
         amount_received = st.number_input(
-            "Amount received on receipt (MK)", min_value=0.0, value=assessed_total, step=5_000.0, key="intake_received_amount"
+            "Amount received on receipt (MK)", min_value=0.0, value=0.0, step=5_000.0, key="intake_received_amount"
         )
         render_money_card("Amount received", amount_received)
         balance = assessed_total - amount_received
@@ -698,7 +713,7 @@ def render_intake() -> None:
 
     action_column, clear_column = st.columns(2)
     submit = action_column.button("Add application to registry", type="primary", use_container_width=True)
-    clear_column.button("Clear form", use_container_width=True, on_click=reset_intake_form)
+    clear_column.button("Clear form", use_container_width=True, on_click=request_intake_form_reset)
 
     if not submit:
         return
@@ -749,8 +764,9 @@ def render_intake() -> None:
         st.error("The registry could not be updated. No confirmation was received from Google Sheets.")
         return
 
-    reset_intake_form()
-    st.success(f"Application {application_id} was added to the registry.")
+    request_intake_form_reset()
+    st.session_state["intake_success_message"] = f"Application {application_id} was added to the registry."
+    st.rerun()
 
 
 def period_details(series: pd.Series, grouping: str) -> tuple[pd.Series, pd.Series]:
