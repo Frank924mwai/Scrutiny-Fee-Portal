@@ -1,759 +1,973 @@
-import streamlit as st
-import pandas as pd
+"""BCC Town Planning and Estates portal.
+
+Required Streamlit secrets (for example, .streamlit/secrets.toml):
+
+    [auth]
+    password = "use-a-long-unique-password"
+
+The Google Sheets connection must be configured as ``connections.gsheets`` for
+streamlit-gsheets.  The sheet is the system of record; this application reads
+the latest sheet immediately before every write to reduce lost updates.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import logging
 import math
+import re
+from datetime import date
+from typing import Any, Mapping
+
+import pandas as pd
 import plotly.express as px
-from datetime import datetime
-import time
-from typing import Tuple
+import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 
-# ── Page Configuration ─────────────────────────────────────────────────────
+
 st.set_page_config(
     page_title="BCC Town Planning and Estates Portal",
-    page_icon="city.png",
-    layout="wide"
+    page_icon="🏛️",
+    layout="wide",
 )
 
-# ── Global High-Contrast + Fluid Media Query Breakpoints ───────────────────
-st.markdown("""
-<style>
-    /* ── IMPORT UNIVERSAL FONT (Forces identical look on Mobile & Desktop) ── */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    /* ── APPLY UNIVERSAL FONT & PREVENT MOBILE SCALING ── */
-    html, body, [class*="st-"], .stApp, p, span, h1, h2, h3, h4, h5, div, input, button, label, table, td, th {
-        font-family: 'Inter', sans-serif !important;
-        -webkit-text-size-adjust: 100% !important; /* Stops iOS/Android from resizing text */
-    }
+LOGGER = logging.getLogger(__name__)
 
-    /* ── RESTORE NATIVE ICON FONTS (Fixes the "visibility" text issue on the password field) ── */
-    span[class*="material"], i[class*="material"], div[class*="material"],
-    [data-testid="stIconMaterial"], 
-    button[aria-label="Toggle password visibility"] *,
-    [data-testid="stTextInputPasswordVisibilityToggleButton"] * {
-        font-family: "Material Symbols Rounded", "Material Icons" !important;
-    }
+TP_DEPARTMENT = "Town Planning (Scrutiny)"
+ESTATES_DEPARTMENT = "Estates Services"
+SCRUTINY_RATE = 0.004
 
-    /* ── FORCE LIGHT THEME OVERRIDE ── */
-    .stApp, .main, header[data-testid="stHeader"] { background-color: #F4F6FA !important; }
-    div[data-testid="stMarkdownContainer"] p, div[data-testid="stMarkdownContainer"] span,
-    .stSlider label, .stNumberInput label, label[data-testid="stWidgetLabel"] p,
-    div[data-testid="stRadio"] label div[data-testid="stMarkdownContainer"] p {
-        color: #1A202C !important; font-weight: 500 !important;
-    }
-    h1, h2, h3, h4, h5 { color: #1E65B5 !important; font-weight: 700 !important; }
-    
-    :root {
-        --navy: #1E65B5; --gold: #C49A2A; --bg: #F4F6FA; 
-        --card: #FFFFFF; --body: #3A4557; --border: #DDE3EE; --muted: #6B7A96;
-    }
+APPLICATION_ID = "Application ID"
+DATE_RECEIVED = "Date Received"
+APPLICANT = "Applicant Name"
+PLOT_NUMBER = "Plot Number"
+DEPARTMENT = "Department"
+CATEGORY = "Category"
+DEVELOPMENT_TYPE = "Development Type"
+DIMENSION = "Dimension/Qty"
+ESTIMATED_COST = "Est. Cost (MK)"
+CALCULATED_FEE = "Calculated Fee (MK)"
+AMOUNT_RECEIVED = "Total Fee (MK)"  # Retained for compatibility with the existing sheet.
+BALANCE = "Balance (MK)"
+WORKFLOW = "Workflow"
+COMPLETED_STEPS = "Completed Steps"
 
-    /* ── SINGLE SIDEBAR HAMBURGER + PRESERVE THEME TOGGLE ── */
-    button[data-testid="stSidebarCollapseButton"] {
-        width: 52px !important; height: 52px !important; padding: 0 !important;
-        background: transparent !important; border: none !important; box-shadow: none !important;
-    }
-    button[data-testid="stSidebarCollapseButton"] svg { display: none !important; }
-    button[data-testid="stSidebarCollapseButton"]::before {
-        content: "☰" !important; font-size: 29px !important; font-weight: bold !important;
-        color: #E8EDF5 !important; display: flex !important; align-items: center; justify-content: center;
-        width: 100%; height: 100%;
-    }
-    button[data-testid="stSidebarCollapseButton"]:hover::before { color: #C49A2A !important; transform: scale(1.1); }
-    header[data-testid="stHeader"] button[title="View documentation"],
-    header[data-testid="stHeader"] button[aria-label*="theme"],
-    header[data-testid="stHeader"] button[data-testid="stHeaderThemeToggle"] {
-        display: inline-flex !important; visibility: visible !important; width: 42px !important; height: 42px !important;
-    }
-    header[data-testid="stHeader"] button svg:not([data-testid*="theme"]) { display: none !important; }
-    header[data-testid="stHeader"] button[aria-label*="theme"] svg,
-    header[data-testid="stHeader"] button[data-testid="stHeaderThemeToggle"] svg { fill: #E8EDF5 !important; stroke: #E8EDF5 !important; }
-
-    /* ── INPUTS, BUTTONS & EYE ICON ── */
-    div.stButton > button {
-        -webkit-appearance: none !important; appearance: none !important; background-color: var(--navy) !important;
-        color: #FFFFFF !important; border: none !important; border-radius: 6px !important; padding: 12px 24px !important;
-        font-weight: 600 !important; min-height: 48px;
-    }
-    div.stButton > button * { color: #FFFFFF !important; }
-    div.stButton > button:hover { background-color: #243660 !important; }
-    [data-testid="stTextInput"] button svg { fill: #1A202C !important; stroke: #1A202C !important; color: #1A202C !important; }
-    [data-testid="stTextInput"] div[data-baseweb="input"] > div, [data-testid="stNumberInput"] div[data-baseweb="input"] > div,
-    [data-testid="stDateInput"] div[data-baseweb="input"] > div, [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
-        background-color: #FFFFFF !important; border: 1px solid #DDE3EE !important; min-height: 44px;
-    }
-    [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input,
-    [data-testid="stDateInput"] input, [data-testid="stSelectbox"] div[data-baseweb="select"] {
-        color: #000000 !important; -webkit-text-fill-color: #000000 !important;
-    }
-    div[data-testid="stCheckbox"] { padding: 6px 0; margin-bottom: 4px; }
-    [data-testid="stDataFrame"] > div, [data-testid="stTable"] > div { background-color: #FFFFFF !important; }
-
-    /* ── CUSTOM UI COMPONENTS ── */
-    .portal-header { 
-        background-color: #1E65B5; border-radius: 8px; border-bottom: 4px solid #C49A2A; 
-        padding: 22px 26px; margin-bottom: 24px; width: 100%; box-sizing: border-box; 
-    }
-    .portal-header * { color: #FFFFFF !important; }
-    .portal-title { margin: 0 0 14px 0; font-weight: 700; font-size: 1.35rem; letter-spacing: 0.04em; line-height: 1.3; text-transform: uppercase; }
-    .card-title { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-    .kpi-tile { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; text-align: center; }
-    .kpi-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-    .kpi-value { font-size: 1.6rem; font-weight: 700; color: var(--navy); line-height: 1.1; word-break: break-all; }
-    .kpi-sub { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
-    .fee-result { background: var(--navy); border-radius: 10px; padding: 22px 26px; margin-top: 16px; border-left: 4px solid var(--gold); }
-    .fee-result .fee-label { color: #A8B8D0; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
-    .fee-result .fee-amount { color: #FFFFFF; font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; word-break: break-all; }
-    .fee-result .fee-note { color: var(--gold); font-size: 0.78rem; margin-top: 6px; }
-    .bcc-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
-
-    /* ── MOBILE RESPONSIVENESS ── */
-    @media (max-width: 768px) {
-        .portal-header { padding: 14px 16px; margin-bottom: 16px; }
-        .portal-title { font-size: 1.05rem; margin-bottom: 10px; }
-        .kpi-tile { padding: 14px 16px; margin-bottom: 10px;}
-        .kpi-value { font-size: 1.3rem; }
-        .fee-result { padding: 16px 18px; }
-        .fee-result .fee-amount { font-size: 1.5rem; }
-        div[data-testid="stHorizontalBlock"] { gap: 10px !important; }
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ── Authentication ─────────────────────────────────────────────────────────
-if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
-
-if not st.session_state["authenticated"]:
-    _, login_col, _ = st.columns([1, 2, 1])
-    with login_col:
-        with st.container(border=True):
-            st.markdown("<h3 style='text-align: center; margin-top: 0; margin-bottom: 20px;'>Secure Registry Authentication</h3>", unsafe_allow_html=True)
-            with st.form("auth_form"):
-                password_input = st.text_input("Internal Access Password", type="password", placeholder="Enter password")
-                submit_auth = st.form_submit_button("Verify Credentials", use_container_width=True)
-                
-                if submit_auth:
-                    correct_password = st.secrets.get("auth", {}).get("password")
-                    if not correct_password:
-                        st.error("❌ Secrets not configured. Contact administrator.")
-                    elif password_input == correct_password:
-                        st.session_state["authenticated"] = True
-                        st.session_state.prev_page = "calculator"
-                        st.rerun()
-                    else:
-                        st.error("❌ Invalid access token. Please verify credentials and re-enter.")
-    st.stop()
-
-# ── Portal Header Band ─────────────────────────────────────────────────────
-header_html = (
-    '<div class="portal-header">'
-    '  <p class="portal-title">Department of Town Planning and Estates Services</p>'
-    '  <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">'
-    '    <span style="background-color: #C49A2A; color: #1E65B5 !important; font-size: 0.72rem; font-weight: 700;'
-    '          letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px;'
-    '          padding: 4px 10px; display: inline-block;">'
-    '      Charges Review 2026/2027 &nbsp;·&nbsp; Effective Rates'
-    '    </span>'
-    '    <span style="color: #FFFFFF !important; font-size: 0.78rem; font-weight: 500;'
-    '          font-style: italic; display: inline-block; letter-spacing: 0.02em;">'
-    '      Created by GIS Specialist Frank Chingoka'
-    '    </span>'
-    '  </div>'
-    '</div>'
-)
-st.markdown(header_html, unsafe_allow_html=True)
-
-# ── Master Data Configuration ───────────────────────────────────────────────
-BCC_RATES = {
-    "Residential": {
-        "High Density":                    {"rate": 170000.00, "unit": "sqm"},
-        "Medium Density":                  {"rate": 190000.00, "unit": "sqm"},
-        "Low Density":                     {"rate": 220000.00, "unit": "sqm"},
-        "Multi- Units (Medium and Low)":   {"rate": 350000.00, "unit": "sqm"},
-    },
-    "Institutional": {
-        "Churches, Mosques and Schools":   {"rate": 420000.00, "unit": "sqm"},
-    },
-    "Industrial Development": {
-        "Factory / Warehouses":            {"rate": 525000.00, "unit": "sqm"},
-    },
-    "Office/Commercial Development": {
-        "Single Storey":                   {"rate": 525000.00, "unit": "sqm"},
-        "Multi- Storey":                   {"rate": 650000.00, "unit": "sqm"},
-    },
-    "Fences": {
-        "Security Fence":                  {"rate": 205000.00, "unit": "linear_meters"},
-    },
-    "Septic Tank": {
-        "Septic Tank Installation":        {"rate": 40000.00,  "unit": "fixed_fee"},
-    },
-    "Advertising": {
-        "Application Fee":                 {"rate": 15000.00,  "unit": "fixed_fee"},
-        "Billboard":                       {"rate": 750000.00, "unit": "fixed_fee"},
-        "Single Sided Signpost":           {"rate": 125000.00, "unit": "fixed_fee"},
-        "Double Sided Signpost":           {"rate": 190000.00, "unit": "fixed_fee"},
-        "Composite Signpost":              {"rate": 500000.00, "unit": "fixed_fee"},
-        "Gantry":                          {"rate": 3000000.00,"unit": "fixed_fee"},
-        "Cantilevered Billboard":          {"rate": 2000000.00,"unit": "fixed_fee"},
-    },
-    "Miscellaneous": {
-        "One surface car parking space":                         {"rate": 280000.00, "unit": "fixed_fee"},
-        "Application in Principle (Outline Application)":        {"rate": 750000.00, "unit": "fixed_fee"},
-        "Change of Use":                                         {"rate": 750000.00, "unit": "fixed_fee"},
-        "Subdivision per plot created":                          {"rate": 150000.00, "unit": "fixed_fee"},
-        "Plot Regularisation":                                   {"rate": 500000.00, "unit": "fixed_fee"},
-        "Infill Plot Creation":                                  {"rate": 500000.00, "unit": "fixed_fee"},
-        "Sewer Application Fees":                                {"rate": 100000.00, "unit": "fixed_fee"},
-        "Certificate of Occupancy":                              {"rate": 0.001,     "unit": "percentage_of_final_cost"},
-        "LPG Exchange Cage":                                     {"rate": 150000.00, "unit": "fixed_fee"},
-        "LPG Exchange & Filler Cage":                            {"rate": 200000.00, "unit": "fixed_fee"},
-        "Site Plan Certification":                               {"rate": 15000.00,  "unit": "fixed_fee"},
-        "Kiosks for Mobile Money":                               {"rate": 190000.00, "unit": "fixed_fee"},
-    },
-}
-
-ESTATES_FEES = {
-    "Application Forms": {
-        "Residential Plot (THA)":   {"rate": 30000.00,  "unit": "fixed_fee"},
-        "Residential Plot (PHA)":   {"rate": 60000.00,  "unit": "fixed_fee"},
-        "Commercial Plot":          {"rate": 150000.00, "unit": "fixed_fee"},
-        "Land Lease Plot (THA)":    {"rate": 100000.00, "unit": "fixed_fee"},
-        "Land Lease Plot (PHA)":    {"rate": 150000.00, "unit": "fixed_fee"},
-    },
-    "Legal Services Fees": {
-        "Consent Application Fee":  {"rate": 80000.00,  "unit": "fixed_fee"},
-        "Legal Fee":                {"rate": 150000.00, "unit": "fixed_fee"},
-    },
-    "Processing & Allocation Fees": {
-        "Residential Plot":                         {"rate": 200000.00, "unit": "fixed_fee"},
-        "Church Plot":                              {"rate": 250000.00, "unit": "fixed_fee"},
-        "School Plot":                              {"rate": 500000.00, "unit": "fixed_fee"},
-        "Commercial Plot (per 0.0036 ha)":          {"rate": 550000.00, "unit": "qty_based"},
-        "Industrial Plot (per 0.0036 ha)":          {"rate": 550000.00, "unit": "qty_based"},
-    },
-    "Ground Rents": {
-        "THA":                      {"rate": 35000.00,  "unit": "fixed_fee"},
-        "High Density":             {"rate": 60000.00,  "unit": "fixed_fee"},
-        "Medium Density":           {"rate": 80000.00,  "unit": "fixed_fee"},
-        "Commercial BY MKT Value":  {"rate": 0.075,     "unit": "market_value"},
-    },
-    "Legalisation": {
-        "Legalisation (THA)":       {"rate": 2000000.00,"unit": "fixed_fee"},
-    },
-    "Change of Ownership": {
-        "Next of Kin":              {"rate": 120000.00, "unit": "fixed_fee"},
-        "Private Sale (THA)":       {"rate": 200000.00, "unit": "fixed_fee"},
-        "Private Sale (PHA)":       {"rate": 350000.00, "unit": "fixed_fee"},
-    },
-    "Development Charges": {
-        "THAs per 0.036 ha":        {"rate": 2000000.00,"unit": "qty_based"},
-    },
-    "Beacon Replacement & Survey": {
-        "First Beacon":                                      {"rate": 80000.00,  "unit": "fixed_fee"},
-        "Extra beacon":                                      {"rate": 40000.00,  "unit": "qty_based"},
-        "Survey of Plot":                                    {"rate": 200000.00, "unit": "fixed_fee"},
-        "Survey drawing & computation fees (0.036ha)":       {"rate": 150000.00, "unit": "qty_based"},
-    },
-}
-
-RATE_04_CATS = {"Residential", "Institutional", "Industrial Development", "Office/Commercial Development", "Fences"}
 COLUMNS = [
-    "Application ID", "Date Received", "Applicant Name", "Plot Number", "Department",
-    "Category", "Development Type", "Dimension/Qty", "Est. Cost (MK)", "Total Fee (MK)", "Completed Steps"
+    APPLICATION_ID,
+    DATE_RECEIVED,
+    APPLICANT,
+    PLOT_NUMBER,
+    DEPARTMENT,
+    CATEGORY,
+    DEVELOPMENT_TYPE,
+    DIMENSION,
+    ESTIMATED_COST,
+    CALCULATED_FEE,
+    AMOUNT_RECEIVED,
+    BALANCE,
+    WORKFLOW,
+    COMPLETED_STEPS,
 ]
 
-def _calc_raw_base_fee(dept: str, category: str, rate_info: dict, qty: float, premium: float = 0.0) -> Tuple[float, float]:
-    if dept == "Town Planning (Scrutiny)":
-        if category in RATE_04_CATS:
-            est_cost = qty * rate_info["rate"]
-            fee = est_cost * 0.004
-        elif rate_info["unit"] == "percentage_of_final_cost":
-            est_cost = qty
-            fee = est_cost * rate_info["rate"]
-        else:
-            est_cost = 0.0
-            fee = qty * rate_info["rate"]
-        return est_cost, fee
-    else:
-        if rate_info["unit"] == "market_value":
-            est_cost = premium * qty
-            fee = premium * rate_info["rate"] * qty
-        elif rate_info["unit"] == "qty_based":
-            est_cost = 0.0
-            fee = qty * rate_info["rate"]
-        else:
-            est_cost = 0.0
-            fee = rate_info["rate"] * qty
-        return est_cost, fee
+NUMERIC_COLUMNS = {
+    DIMENSION,
+    ESTIMATED_COST,
+    CALCULATED_FEE,
+    AMOUNT_RECEIVED,
+    BALANCE,
+}
 
-def _fmt_date_col(series: pd.Series) -> pd.Series:
-    def safe_format(x):
-        if pd.isna(x) or x == "" or str(x).strip() == "":
-            return ""
-        try:
-            dt = pd.to_datetime(x, dayfirst=True, errors='coerce')
-            if pd.notnull(dt):
-                return dt.strftime("%d/%m/%Y")
-        except:
-            pass
-        return str(x).strip()
-    return series.apply(safe_format)
 
-# ── Cloud Data Synchronizer ───────────────────────────────────────────────
+# Keep financial policy in data, not in UI conditionals.  Update these rates only
+# after the council has approved the new tariff schedule.
+BCC_RATES: dict[str, dict[str, dict[str, Any]]] = {
+    "Residential": {
+        "High Density": {"rate": 170000.00, "unit": "sqm"},
+        "Medium Density": {"rate": 190000.00, "unit": "sqm"},
+        "Low Density": {"rate": 220000.00, "unit": "sqm"},
+        "Multi-Units (Medium and Low)": {"rate": 350000.00, "unit": "sqm"},
+    },
+    "Institutional": {
+        "Churches, Mosques and Schools": {"rate": 420000.00, "unit": "sqm"},
+    },
+    "Industrial Development": {
+        "Factory / Warehouses": {"rate": 525000.00, "unit": "sqm"},
+    },
+    "Office/Commercial Development": {
+        "Single Storey": {"rate": 525000.00, "unit": "sqm"},
+        "Multi-Storey": {"rate": 650000.00, "unit": "sqm"},
+    },
+    "Fences": {
+        "Security Fence": {"rate": 205000.00, "unit": "linear_meters"},
+    },
+    "Septic Tank": {
+        "Septic Tank Installation": {"rate": 40000.00, "unit": "fixed_fee"},
+    },
+    "Advertising": {
+        "Application Fee": {"rate": 15000.00, "unit": "fixed_fee"},
+        "Billboard": {"rate": 750000.00, "unit": "fixed_fee"},
+        "Single Sided Signpost": {"rate": 125000.00, "unit": "fixed_fee"},
+        "Double Sided Signpost": {"rate": 190000.00, "unit": "fixed_fee"},
+        "Composite Signpost": {"rate": 500000.00, "unit": "fixed_fee"},
+        "Gantry": {"rate": 3000000.00, "unit": "fixed_fee"},
+        "Cantilevered Billboard": {"rate": 2000000.00, "unit": "fixed_fee"},
+    },
+    "Miscellaneous": {
+        "One Surface Car Parking Space": {"rate": 280000.00, "unit": "fixed_fee"},
+        "Application in Principle (Outline Application)": {"rate": 750000.00, "unit": "fixed_fee"},
+        "Change of Use": {"rate": 750000.00, "unit": "fixed_fee"},
+        "Subdivision per Plot Created": {"rate": 150000.00, "unit": "fixed_fee"},
+        "Plot Regularisation": {"rate": 500000.00, "unit": "fixed_fee"},
+        "Infill Plot Creation": {"rate": 500000.00, "unit": "fixed_fee"},
+        "Sewer Application Fees": {"rate": 100000.00, "unit": "fixed_fee"},
+        "Certificate of Occupancy": {"rate": 0.001, "unit": "percentage_of_final_cost"},
+        "LPG Exchange Cage": {"rate": 150000.00, "unit": "fixed_fee"},
+        "LPG Exchange & Filler Cage": {"rate": 200000.00, "unit": "fixed_fee"},
+        "Site Plan Certification": {"rate": 15000.00, "unit": "fixed_fee"},
+        "Kiosks for Mobile Money": {"rate": 190000.00, "unit": "fixed_fee"},
+    },
+}
+
+ESTATES_FEES: dict[str, dict[str, dict[str, Any]]] = {
+    "Application Forms": {
+        "Residential Plot (THA)": {"rate": 30000.00, "unit": "fixed_fee"},
+        "Residential Plot (PHA)": {"rate": 60000.00, "unit": "fixed_fee"},
+        "Commercial Plot": {"rate": 150000.00, "unit": "fixed_fee"},
+        "Land Lease Plot (THA)": {"rate": 100000.00, "unit": "fixed_fee"},
+        "Land Lease Plot (PHA)": {"rate": 150000.00, "unit": "fixed_fee"},
+    },
+    "Legal Services Fees": {
+        "Consent Application Fee": {"rate": 80000.00, "unit": "fixed_fee"},
+        "Legal Fee": {"rate": 150000.00, "unit": "fixed_fee"},
+    },
+    "Processing & Allocation Fees": {
+        "Residential Plot": {"rate": 200000.00, "unit": "fixed_fee"},
+        "Church Plot": {"rate": 250000.00, "unit": "fixed_fee"},
+        "School Plot": {"rate": 500000.00, "unit": "fixed_fee"},
+        "Commercial Plot (per 0.0036 ha)": {"rate": 550000.00, "unit": "qty_based"},
+        "Industrial Plot (per 0.0036 ha)": {"rate": 550000.00, "unit": "qty_based"},
+    },
+    "Ground Rents": {
+        "THA": {"rate": 35000.00, "unit": "fixed_fee"},
+        "High Density": {"rate": 60000.00, "unit": "fixed_fee"},
+        "Medium Density": {"rate": 80000.00, "unit": "fixed_fee"},
+        "Commercial by Market Value": {"rate": 0.075, "unit": "market_value"},
+    },
+    "Legalisation": {
+        "Legalisation (THA)": {"rate": 2000000.00, "unit": "fixed_fee"},
+    },
+    "Change of Ownership": {
+        "Next of Kin": {"rate": 120000.00, "unit": "fixed_fee"},
+        "Private Sale (THA)": {"rate": 200000.00, "unit": "fixed_fee"},
+        "Private Sale (PHA)": {"rate": 350000.00, "unit": "fixed_fee"},
+    },
+    "Development Charges": {
+        "THAs per 0.036 ha": {"rate": 2000000.00, "unit": "qty_based"},
+    },
+    "Beacon Replacement & Survey": {
+        "First Beacon": {"rate": 80000.00, "unit": "fixed_fee"},
+        "Extra Beacon": {"rate": 40000.00, "unit": "qty_based"},
+        "Survey of Plot": {"rate": 200000.00, "unit": "fixed_fee"},
+        "Survey Drawing & Computation Fees (0.036 ha)": {"rate": 150000.00, "unit": "qty_based"},
+    },
+}
+
+TP_COST_BASED_CATEGORIES = {
+    "Residential",
+    "Institutional",
+    "Industrial Development",
+    "Office/Commercial Development",
+    "Fences",
+}
+
+TP_ADD_ONS = (
+    ("Advertising", "Application Fee", "Application fee"),
+    ("Septic Tank", "Septic Tank Installation", "Septic tank fee"),
+    ("Miscellaneous", "Site Plan Certification", "Site plan certification"),
+    ("Miscellaneous", "One Surface Car Parking Space", "Surface car parking"),
+    ("Miscellaneous", "Sewer Application Fees", "Sewer application fee"),
+)
+
+WORKFLOWS: dict[str, list[str]] = {
+    "Lease Application": [
+        "Confirmation of Estate",
+        "Confirmation of Details",
+        "City Rates Clearance",
+        "Lease Application Fee Paid",
+        "Application Form Submitted",
+        "Property Inspection Completed",
+        "Surveying Executed",
+        "Development Charges Cleared",
+        "Legal Costs Cleared",
+        "Final Signing by Director of Town Planning and Estates Services",
+    ],
+    "Change of Ownership": [
+        "Obtain Letter (Site Office / Deceased Estate)",
+        "Site Verification",
+        "File Check at Civic Offices",
+        "City Rates Clearance",
+        "Clearance Certificate Fee Paid",
+        "Change of Ownership Fee Paid",
+        "Tax Clearance (MRA) Obtained",
+        "Signing by Director of Town Planning and Estates Services",
+        "Signing by Director of Financial Services",
+        "Initial CEO Signature",
+        "Document Preparation",
+        "Final CEO Signature",
+    ],
+    "Plan Approval": [
+        "Submission of Plans",
+        "Payment of Scrutiny Fees",
+        "Technical Screening of Plans",
+        "Town Planning Committee Screening and Approval of Plans",
+        "Preparation of Grant Permissions",
+        "Stamping of the Approved Plans",
+        "Signing of Plans and Grant Permissions by the Director of Town Planning and Estates Services",
+    ],
+}
+
+
+def setup_page() -> None:
+    st.markdown(
+        """
+        <style>
+        .stApp { background: #f4f6fa; }
+        [data-testid="stSidebar"] { background: #1e65b5; }
+        [data-testid="stSidebar"] * { color: #ffffff; }
+        .portal-header {
+            background: #1e65b5; border-bottom: 4px solid #c49a2a;
+            border-radius: 10px; color: white; padding: 1.4rem 1.7rem; margin-bottom: 1.4rem;
+        }
+        .portal-header h1 { color: white; font-size: 1.45rem; margin: 0 0 .3rem; }
+        .portal-header p { margin: 0; color: #dbe8f7; }
+        div[data-testid="stMetric"] {
+            background: white; border: 1px solid #dde3ee; border-radius: 10px; padding: .85rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def empty_registry() -> pd.DataFrame:
+    """Return an empty frame with the complete current schema."""
+    return pd.DataFrame(columns=COLUMNS)
+
+
+def parse_registry_date(value: Any) -> pd.Timestamp | pd.NaT:
+    """Parse ISO dates and legacy DD/MM/YYYY dates without locale ambiguity."""
+    if pd.isna(value) or str(value).strip() in {"", "nan", "NaT", "N/A"}:
+        return pd.NaT
+
+    if isinstance(value, (int, float)) and 20_000 < value < 60_000:
+        # Excel serial date. GSheets normally returns a datetime, but this makes
+        # the migration robust if an exported numeric date is encountered.
+        return pd.to_datetime(value, unit="D", origin="1899-12-30", errors="coerce")
+
+    text = str(value).strip()
+    if re.fullmatch(r"\d{1,2}/\d{1,2}/\d{4}", text):
+        return pd.to_datetime(text, format="%d/%m/%Y", errors="coerce")
+    return pd.to_datetime(value, errors="coerce")
+
+
+def normalise_registry(raw: pd.DataFrame | None) -> pd.DataFrame:
+    """Migrate legacy sheet data into the in-app schema without changing labels."""
+    if raw is None or raw.empty:
+        return empty_registry()
+
+    df = raw.copy()
+    original_columns = set(df.columns)
+    for column in COLUMNS:
+        if column not in df.columns:
+            df[column] = 0.0 if column in NUMERIC_COLUMNS else ""
+
+    # Older sheets have only Total Fee. Treat it as amount received and use it as
+    # the best available calculated fee until a record is amended in the portal.
+    if CALCULATED_FEE not in original_columns:
+        df[CALCULATED_FEE] = df[AMOUNT_RECEIVED]
+    if BALANCE not in original_columns:
+        df[BALANCE] = 0.0
+
+    for column in NUMERIC_COLUMNS:
+        df[column] = pd.to_numeric(df[column], errors="coerce").fillna(0.0)
+
+    for column in COLUMNS:
+        if column not in NUMERIC_COLUMNS and column != DATE_RECEIVED:
+            df[column] = df[column].fillna("").astype(str).str.strip()
+
+    blank_departments = df[DEPARTMENT].isin({"", "N/A", "nan", "None"})
+    df.loc[blank_departments, DEPARTMENT] = TP_DEPARTMENT
+    df[DATE_RECEIVED] = df[DATE_RECEIVED].apply(parse_registry_date)
+    return df
+
+
+def prepare_for_storage(df: pd.DataFrame) -> pd.DataFrame:
+    """Serialise data in a stable, spreadsheet-friendly format."""
+    output = normalise_registry(df)
+    output[DATE_RECEIVED] = output[DATE_RECEIVED].apply(
+        lambda value: value.strftime("%Y-%m-%d") if pd.notna(value) else ""
+    )
+    for column in NUMERIC_COLUMNS:
+        output[column] = output[column].round(2)
+
+    # Preserve any manually managed columns that already exist in the sheet.
+    extra_columns = [column for column in df.columns if column not in COLUMNS]
+    return output[COLUMNS + extra_columns]
+
+
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-@st.cache_data(ttl=5)
-def load_data() -> pd.DataFrame:
+
+def read_registry_uncached() -> tuple[pd.DataFrame, str | None]:
     try:
-        df = conn.read(ttl=0)
-        if df is None or df.empty:
-            return pd.DataFrame(columns=COLUMNS)
-        for col in COLUMNS:
-            if col not in df.columns:
-                df[col] = "N/A"
-        df["Department"] = df["Department"].replace({"N/A": "Town Planning (Scrutiny)"})
-        if "Category" in df.columns:
-            df["Category"] = df["Category"].astype(str).str.title()
-        df["Date Received"] = pd.to_datetime(df["Date Received"], format="%d/%m/%Y", errors="coerce")
-        for num_col in ["Total Fee (MK)", "Est. Cost (MK)", "Dimension/Qty"]:
-            if num_col in df.columns:
-                df[num_col] = pd.to_numeric(df[num_col], errors="coerce").fillna(0.0)
-        return df
-    except Exception as e:
-        st.error(f"Failed to fetch data from registry: {e}")
-        return pd.DataFrame(columns=COLUMNS)
+        return normalise_registry(conn.read(ttl=0)), None
+    except Exception:
+        LOGGER.exception("Registry read failed")
+        return empty_registry(), "Unable to read the registry. Check the Google Sheets connection configuration."
 
-# ── Initialization and Navigation ─────────────────────────────────────────
-df_bcc = load_data()
 
-st.sidebar.markdown("### 🏛 BCC PORTAL")
-st.sidebar.markdown("---")
-PAGE_MAP = {
-    "🧮 Fee Calculator":        "calculator",
-    "📥 New Application Intake": "intake",
-    "📊 Submission Analytics":   "analytics",
-    "🛤️ Process Tracking":       "tracker",
-}
-selected_label = st.sidebar.radio("Navigate to:", list(PAGE_MAP.keys()), key="sidebar_nav")
-current_page = PAGE_MAP[selected_label]
+@st.cache_data(ttl=15, show_spinner=False)
+def load_registry() -> tuple[pd.DataFrame, str | None]:
+    """Cache read-only views briefly; every write still performs a fresh read."""
+    return read_registry_uncached()
 
-if st.session_state.get("prev_page") != current_page:
-    st.session_state.prev_page = current_page
-    st.rerun()
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### ⚙️ DASHBOARD CONTROLS")
-live_mode = st.sidebar.toggle("🔄 Enable Real-Time Live View", value=False)
-if live_mode:
-    refresh_rate = st.sidebar.slider("Refresh Interval (seconds)", 5, 60, 10)
+def write_registry(df: pd.DataFrame) -> None:
+    conn.update(data=prepare_for_storage(df))
+    load_registry.clear()
 
-st.sidebar.markdown("---")
-if st.sidebar.button("🔃 Refresh Data Now", use_container_width=True):
-    st.cache_data.clear()
-    st.rerun()
-st.sidebar.caption("Blantyre City Council · Town Planning & Estates")
 
-# ==============================================================================
-# MODULE 1: FEE CALCULATOR
-# ==============================================================================
-def render_calculator():
-    st.markdown("## 🧮 FEE CALCULATOR")
-    st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    
-    dept_choice = st.radio("Select Department Parameter", ["Town Planning (Scrutiny)", "Estates Services"], horizontal=True, key="calc_dept")
-    target_dict = BCC_RATES if dept_choice == "Town Planning (Scrutiny)" else ESTATES_FEES
-    col1, col2 = st.columns([1, 1], gap="medium")
-    
-    with col1:
-        with st.container(border=True):
-            st.markdown('<div class="card-title">Development / Service Parameters</div>', unsafe_allow_html=True)
-            category    = st.selectbox("Plan Category", list(target_dict.keys()), key="calc_cat")
-            subcategory = st.selectbox("Service / Development Type", list(target_dict[category].keys()), key="calc_sub")
-            
-            item_details = target_dict[category][subcategory]
-            base_rate    = item_details["rate"]
-            unit_type    = item_details["unit"]
-            is_04        = (category in RATE_04_CATS) and (dept_choice == "Town Planning (Scrutiny)")
-            premium_val  = 0.0
-            
-            if unit_type == "sqm":
-                st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-                st.markdown('<div class="card-title">📐 Area Determination Method</div>', unsafe_allow_html=True)
-                input_method = st.radio("Entry format:", ["Enter Total Area Manually", "Calculate Using Geometric Shapes"], horizontal=True, key="calc_method")
-                if input_method == "Enter Total Area Manually":
-                    input_val = st.number_input("Total Built-up Area (Square Meters)", min_value=0.0, value=100.0, step=10.0, key="calc_man_sqm")
+def money(value: float) -> str:
+    return f"MK {value:,.2f}"
+
+
+def rate_key(category: str, development_type: str) -> str:
+    return f"{category}::{development_type}"
+
+
+def get_rate_table(department: str) -> Mapping[str, Mapping[str, Mapping[str, Any]]]:
+    return BCC_RATES if department == TP_DEPARTMENT else ESTATES_FEES
+
+
+def sync_rate_selection(
+    table: Mapping[str, Mapping[str, Mapping[str, Any]]],
+    category_key: str,
+    type_key: str,
+) -> tuple[str, str, Mapping[str, Any]]:
+    """Keep dependent selectboxes valid after a department/category change."""
+    categories = list(table)
+    if st.session_state.get(category_key) not in categories:
+        st.session_state[category_key] = categories[0]
+    category = st.selectbox("Category", categories, key=category_key)
+
+    development_types = list(table[category])
+    if st.session_state.get(type_key) not in development_types:
+        st.session_state[type_key] = development_types[0]
+    development_type = st.selectbox("Development type", development_types, key=type_key)
+    return category, development_type, table[category][development_type]
+
+
+def calculate_base_fee(
+    department: str,
+    category: str,
+    rate_info: Mapping[str, Any],
+    quantity: float,
+    premium_per_sqm: float = 0.0,
+) -> tuple[float, float]:
+    """Return (estimated_cost_or_valuation, base_fee) for a validated input."""
+    quantity = max(float(quantity), 0.0)
+    premium_per_sqm = max(float(premium_per_sqm), 0.0)
+    rate = float(rate_info["rate"])
+    unit = str(rate_info["unit"])
+
+    if department == TP_DEPARTMENT:
+        if category in TP_COST_BASED_CATEGORIES:
+            estimated_cost = quantity * rate
+            return estimated_cost, estimated_cost * SCRUTINY_RATE
+        if unit == "percentage_of_final_cost":
+            return quantity, quantity * rate
+        return 0.0, quantity * rate
+
+    if unit == "market_value":
+        valuation = premium_per_sqm * quantity
+        return valuation, valuation * rate
+    return 0.0, quantity * rate
+
+
+def render_quantity_input(
+    rate_info: Mapping[str, Any],
+    key_prefix: str,
+    *,
+    allow_geometry: bool,
+) -> tuple[float, float]:
+    """Collect the input required by a rate unit and return quantity, premium."""
+    unit = str(rate_info["unit"])
+    premium = 0.0
+
+    if unit == "sqm":
+        if allow_geometry:
+            method = st.radio(
+                "Area entry method",
+                ("Enter total area", "Calculate from a shape"),
+                horizontal=True,
+                key=f"{key_prefix}_area_method",
+            )
+            if method == "Calculate from a shape":
+                shape = st.selectbox(
+                    "Shape", ("Rectangle", "Triangle", "Trapezium", "Circle", "Semicircle"), key=f"{key_prefix}_shape"
+                )
+                if shape == "Rectangle":
+                    length = st.number_input("Length (m)", min_value=0.0, value=20.0, step=0.5, key=f"{key_prefix}_length")
+                    width = st.number_input("Width (m)", min_value=0.0, value=15.0, step=0.5, key=f"{key_prefix}_width")
+                    quantity = length * width
+                elif shape == "Triangle":
+                    base = st.number_input("Base (m)", min_value=0.0, value=15.0, step=0.5, key=f"{key_prefix}_base")
+                    height = st.number_input("Perpendicular height (m)", min_value=0.0, value=10.0, step=0.5, key=f"{key_prefix}_height")
+                    quantity = 0.5 * base * height
+                elif shape == "Trapezium":
+                    side_a = st.number_input("Parallel side A (m)", min_value=0.0, value=12.0, step=0.5, key=f"{key_prefix}_side_a")
+                    side_b = st.number_input("Parallel side B (m)", min_value=0.0, value=18.0, step=0.5, key=f"{key_prefix}_side_b")
+                    height = st.number_input("Height (m)", min_value=0.0, value=8.0, step=0.5, key=f"{key_prefix}_trap_height")
+                    quantity = 0.5 * (side_a + side_b) * height
                 else:
-                    shape = st.selectbox("Select Shape Profile:", ["Rectangle", "Triangle", "Trapezium", "Circle", "Semicircle"], key="calc_shape")
-                    if shape == "Rectangle":
-                        input_val = st.number_input("Length (m)", value=20.0) * st.number_input("Width (m)", value=15.0)
-                    elif shape == "Triangle":
-                        input_val = 0.5 * st.number_input("Base Length (m)", value=15.0) * st.number_input("Perpendicular Height (m)", value=10.0)
-                    elif shape == "Trapezium":
-                        input_val = 0.5 * (st.number_input("Parallel Side A (m)", value=12.0) + st.number_input("Parallel Side B (m)", value=18.0)) * st.number_input("Distance / Height (m)", value=8.0)
-                    elif shape == "Circle":
-                        input_val = math.pi * st.number_input("Radius (m)", value=7.0) ** 2
-                    elif shape == "Semicircle":
-                        input_val = 0.5 * math.pi * st.number_input("Radius (m)", value=7.0) ** 2
-                st.metric(label="Calculated Spatial Footprint", value=f"{input_val:,.2f} sqm")
-            elif unit_type == "linear_meters":
-                input_val = st.number_input("Total Fence Length (Meters)", min_value=0.0, value=50.0, step=5.0, key="calc_lin_mtrs")
-            elif unit_type == "percentage_of_final_cost":
-                input_val = st.number_input("Declared Final Structural Cost (MK)", min_value=0.0, value=5000000.0, step=100000.0, key="calc_pct_cost")
-            elif unit_type == "market_value":
-                premium_val = st.number_input("Premium Value (MK)", value=1000000.0, step=50000.0, key="calc_mkt_prem")
-                input_val   = st.number_input("Plot Area (Square Meters)", value=1000.0, step=10.0, key="calc_mkt_area")
-            elif unit_type == "qty_based":
-                input_val = st.number_input("Quantity", min_value=1.0, value=1.0, step=1.0, key="calc_qty")
-            else:
-                input_val = st.number_input("Quantity / Units", min_value=1.0, value=1.0, step=1.0, key="calc_fallback_qty")
-            
-            addon_accumulated = 0.0
-            if dept_choice == "Town Planning (Scrutiny)":
-                with st.container(border=True):
-                    st.markdown('<div class="card-title">📦 Combine Additional Fees (Optional)</div>', unsafe_allow_html=True)
-                    show_app_checkbox = not (category == "Advertising" and subcategory == "Application Fee")
-                    if st.checkbox("Include Base App Fee (MK 15,000)", value=show_app_checkbox, disabled=not show_app_checkbox):
-                        addon_accumulated += BCC_RATES["Advertising"]["Application Fee"]["rate"]
-                    if st.checkbox("Include Septic Tank Fee (MK 40,000)"): addon_accumulated += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
-                    if st.checkbox("Include Site Plan Cert. (MK 15,000)"): addon_accumulated += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
-                    if st.checkbox("Include Surface Car Parking (MK 280,000)"): addon_accumulated += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
-                    if st.checkbox("Include Sewer Application Fee (MK 100,000)"): addon_accumulated += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
-            
-            estimated_cost, base_fee = _calc_raw_base_fee(dept_choice, category, item_details, input_val, premium_val)
-            total_fee_due = base_fee + addon_accumulated
-            base_fee_label = "Scrutiny Fee" if dept_choice == "Town Planning (Scrutiny)" else "Service Fee"
+                    radius = st.number_input("Radius (m)", min_value=0.0, value=7.0, step=0.5, key=f"{key_prefix}_radius")
+                    quantity = math.pi * radius**2
+                    if shape == "Semicircle":
+                        quantity *= 0.5
+                st.info(f"Calculated area: {quantity:,.2f} sqm")
+                return quantity, premium
 
-    with col2:
-        with st.container(border=True):
-            st.markdown('<div class="card-title">Assessment Breakdown</div>', unsafe_allow_html=True)
-            st.markdown(f"""
-                <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:16px;border:1px solid #DDE3EE;">
-                    <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Category</div>
-                    <div style="font-size:0.95rem;color:#1B2A4A;font-weight:600;">{category}</div>
-                    <div style="font-size:0.75rem;color:#6B7A96;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-top:10px;">Development Type</div>
-                    <div style="font-size:0.95rem;color:#1B2A4A;font-weight:600;">{subcategory}</div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            if is_04 or unit_type == "market_value":
-                label_text = "Estimated Development Cost" if is_04 else "Calculated Base Valuation"
-                st.markdown(f"""
-                    <div style="display:flex;gap:12px;margin-bottom:12px;">
-                        <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">
-                            <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;">Base Rate/Multiplier</div>
-                            <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">{base_rate:,.3f}</div>
-                        </div>
-                        <div style="flex:1;background:#F4F6FA;border-radius:8px;padding:14px;border:1px solid #DDE3EE;text-align:center;">
-                            <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;">Metric / Qty</div>
-                            <div style="font-size:1.1rem;font-weight:700;color:#1B2A4A;">{input_val:,.2f}</div>
-                        </div>
-                    </div>
-                    <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;">
-                        <div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;">{label_text}</div>
-                        <div style="font-size:1.35rem;font-weight:700;color:#1B2A4A;">MK {estimated_cost:,.2f}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-            if addon_accumulated > 0:
-                st.markdown(f"""
-                    <div style="background:#F4F6FA;border-radius:8px;padding:14px 18px;margin-bottom:12px;border:1px solid #DDE3EE;display:flex;justify-content:space-between;">
-                        <div><div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;">{base_fee_label}</div>
-                        <div style="font-size:1.05rem;font-weight:700;color:#1B2A4A;">MK {base_fee:,.2f}</div></div>
-                        <div style="text-align:right;"><div style="font-size:0.72rem;color:#6B7A96;font-weight:600;text-transform:uppercase;">Add-ons</div>
-                        <div style="font-size:1.05rem;font-weight:700;color:#2463EB;">+ MK {addon_accumulated:,.2f}</div></div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-            st.markdown(f"""
-                <div class="fee-result">
-                    <div class="fee-label">{"Total Fee Payable" if addon_accumulated > 0 else f"Total {dept_choice.split()[0]} Fee Payable"}</div>
-                    <div class="fee-amount">MK {total_fee_due:,.2f}</div>
-                    <div class="fee-note">{'MK {:,.2f} + Additions MK {:,.2f}'.format(base_fee, addon_accumulated) if addon_accumulated > 0 else f"Calculations for {dept_choice}"}</div>
-                </div>
-            """, unsafe_allow_html=True)
+        quantity = st.number_input(
+            "Built-up area (sqm)", min_value=0.0, value=100.0, step=10.0, key=f"{key_prefix}_sqm"
+        )
+    elif unit == "linear_meters":
+        quantity = st.number_input(
+            "Fence length (metres)", min_value=0.0, value=50.0, step=5.0, key=f"{key_prefix}_linear"
+        )
+    elif unit == "percentage_of_final_cost":
+        quantity = st.number_input(
+            "Declared final structural cost (MK)", min_value=0.0, value=5_000_000.0, step=100_000.0, key=f"{key_prefix}_cost"
+        )
+    elif unit == "market_value":
+        premium = st.number_input(
+            "Premium value per sqm (MK)", min_value=0.0, value=1_000_000.0, step=50_000.0, key=f"{key_prefix}_premium"
+        )
+        quantity = st.number_input(
+            "Plot area (sqm)", min_value=0.0, value=1_000.0, step=10.0, key=f"{key_prefix}_market_area"
+        )
+    else:
+        label = "Number of chargeable units" if unit == "qty_based" else "Number of items"
+        quantity = st.number_input(label, min_value=1.0, value=1.0, step=1.0, key=f"{key_prefix}_quantity")
 
-# ==============================================================================
-# MODULE 2: NEW APPLICATION INTAKE
-# ==============================================================================
-def render_intake(df):
-    st.markdown("## 📥 NEW APPLICATION INTAKE")
-    st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    
-    if st.session_state.get("clear_intake_flag", False):
-        st.session_state["intake_app_id"] = ""
-        st.session_state["intake_applicant"] = ""
-        st.session_state["intake_plot"] = ""
-        st.session_state["intake_fee"] = 0.0
-        st.session_state["clear_intake_flag"] = False
+    return quantity, premium
 
-    def trigger_clear():
-        st.session_state["clear_intake_flag"] = True
 
-    if st.session_state.get("intake_success_msg"):
-        st.success(st.session_state.pop("intake_success_msg"))
-        st.balloons()
-        
-    intake_dept = st.radio("Select Department", ["Town Planning (Scrutiny)", "Estates Services"], horizontal=True, key="intake_dept")
-    target_dict = BCC_RATES if intake_dept == "Town Planning (Scrutiny)" else ESTATES_FEES
-    
-    col1, col2 = st.columns(2, gap="medium")
-    with col1:
-        app_id = st.text_input("Application / File ID", placeholder="e.g., BCC/TP/2026/250", key="intake_app_id")
-        applicant_name = st.text_input("Applicant Name / Developer Entity", key="intake_applicant")
-        date_rcvd = st.date_input("Date Received", value=datetime.today(), key="intake_date")
-    with col2:
-        plot_number = st.text_input("Plot Number / Parcel ID", key="intake_plot")
-        intake_category = st.selectbox("Category", list(target_dict.keys()), key="intake_cat")
-        intake_subcategory = st.selectbox("Development Type", list(target_dict[intake_category].keys()), key="intake_sub")
-        
-    st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    with st.container(border=True):
-        st.markdown('<div class="card-title">Financial Metrics Input</div>', unsafe_allow_html=True)
-        rate_info = target_dict[intake_category][intake_subcategory]
-        input_fee_paid = st.number_input("Total Amount Received on Receipt (MK)", min_value=0.0, step=5000.0, key="intake_fee")
-        
-        is_tp = (intake_dept == "Town Planning (Scrutiny)")
-        st.markdown("<div style='font-size:0.80rem;color:#6B7A96;font-weight:700;text-transform:uppercase;'>Check items included in this receipt total:</div>", unsafe_allow_html=True)
-        
-        bundle_col1, bundle_col2, bundle_col3 = st.columns([1, 1, 1])
-        with bundle_col1:
-            inc_app = st.checkbox("Base App Fee (MK 15,000)", value=True, disabled=not is_tp, key="inc_app")
-            inc_site = st.checkbox("Site Plan Cert. (MK 15,000)", disabled=not is_tp, key="inc_site")
-        with bundle_col2:
-            inc_septic = st.checkbox("Septic Tank (MK 40,000)", disabled=not is_tp, key="inc_septic")
-            inc_sewer = st.checkbox("Sewer App Fee (MK 100,000)", disabled=not is_tp, key="inc_sewer")
-        with bundle_col3:
-            inc_parking = st.checkbox("Car Parking (MK 280,000)", disabled=not is_tp, key="inc_parking")
-            
-        deductions = 0.0
-        if is_tp:
-            if inc_app: deductions += BCC_RATES["Advertising"]["Application Fee"]["rate"]
-            if inc_septic: deductions += BCC_RATES["Septic Tank"]["Septic Tank Installation"]["rate"]
-            if inc_site: deductions += BCC_RATES["Miscellaneous"]["Site Plan Certification"]["rate"]
-            if inc_parking: deductions += BCC_RATES["Miscellaneous"]["One surface car parking space"]["rate"]
-            if inc_sewer: deductions += BCC_RATES["Miscellaneous"]["Sewer Application Fees"]["rate"]
-            
-        net_fee = max(0.0, input_fee_paid - deductions) if is_tp else input_fee_paid
-        if is_tp and deductions > 0:
-            st.caption(f"Net Scrutiny Fee (total − deductions): **MK {net_fee:,.2f}**")
-            
-        st.markdown("<br>", unsafe_allow_html=True)
-        btn_col1, btn_col2 = st.columns(2)
-        submit_btn = btn_col1.button("📄 Append Entry to Registry", use_container_width=True)
-        btn_col2.button("🧹 Clear Data", use_container_width=True, on_click=trigger_clear)
-            
-        if submit_btn:
-            errors = [e for e, v in [("Application ID is required.", app_id), ("Applicant Name required.", applicant_name), ("Plot Number required.", plot_number)] if not v.strip()]
-            if errors:
-                for e in errors: st.error(f"❌ {e}")
-            else:
-                if intake_dept == "Town Planning (Scrutiny)" and (intake_category in RATE_04_CATS):
-                    calc_est_cost = net_fee / 0.004
-                    derived_dimension = calc_est_cost / rate_info["rate"] if rate_info["rate"] > 0 else 0.0
-                elif rate_info["unit"] in ["percentage_of_final_cost", "market_value"]:
-                    calc_est_cost = net_fee / rate_info["rate"] if rate_info["rate"] > 0 else 0.0
-                    derived_dimension = calc_est_cost
-                else:
-                    calc_est_cost = 0.0
-                    derived_dimension = net_fee / rate_info["rate"] if rate_info["rate"] > 0 else 1.0
-                    
-                new_row = {
-                    "Application ID": app_id.strip().upper(),
-                    "Date Received": date_rcvd.strftime("%d/%m/%Y"),
-                    "Applicant Name": applicant_name.strip(),
-                    "Plot Number": plot_number.strip(),
-                    "Department": intake_dept,
-                    "Category": intake_category,
-                    "Development Type": intake_subcategory,
-                    "Dimension/Qty": round(derived_dimension, 2),
-                    "Est. Cost (MK)": round(calc_est_cost, 2),
-                    "Total Fee (MK)": input_fee_paid,
-                    "Completed Steps": "",
-                }
-                try:
-                    df_updated = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                    df_updated["Date Received"] = _fmt_date_col(df_updated["Date Received"])
-                    conn.update(data=df_updated)
-                    st.session_state["intake_success_msg"] = f"✅ Record for **{applicant_name.strip()}** appended securely."
-                    st.session_state["clear_intake_flag"] = True
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Registry write failed: {e}")
+def available_tp_add_ons(category: str, development_type: str) -> dict[str, tuple[str, float]]:
+    """Exclude the selected base service so it cannot be charged twice."""
+    selected_id = rate_key(category, development_type)
+    choices: dict[str, tuple[str, float]] = {}
+    for add_on_category, add_on_type, label in TP_ADD_ONS:
+        add_on_id = rate_key(add_on_category, add_on_type)
+        if add_on_id == selected_id:
+            continue
+        amount = float(BCC_RATES[add_on_category][add_on_type]["rate"])
+        choices[add_on_id] = (f"{label} ({money(amount)})", amount)
+    return choices
 
-# ==============================================================================
-# MODULE 3: SUBMISSION ANALYTICS
-# ==============================================================================
-def render_analytics(df):
-    st.markdown("## 📊 SUBMISSION ANALYTICS")
-    st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    
-    view_filter = st.radio("View Data For:", ["All Departments", "Town Planning (Scrutiny)", "Estates Services"], horizontal=True)
-    df_filtered = df.copy()
-    if view_filter != "All Departments":
-        df_filtered = df_filtered[df_filtered["Department"] == view_filter]
-        
-    if df_filtered.empty:
-        st.info("📭 No applications on record for this selection.")
+
+def render_tp_add_ons(category: str, development_type: str, key: str) -> tuple[list[str], float]:
+    choices = available_tp_add_ons(category, development_type)
+    previous = st.session_state.get(key, [])
+    valid_previous = [option for option in previous if option in choices]
+    if previous != valid_previous:
+        st.session_state[key] = valid_previous
+
+    selected = st.multiselect(
+        "Additional fees to include",
+        options=list(choices),
+        format_func=lambda option: choices[option][0],
+        key=key,
+        help="Select only fees that form part of this same assessment or receipt.",
+    )
+    return selected, sum(choices[option][1] for option in selected)
+
+
+def rate_description(department: str, category: str, rate_info: Mapping[str, Any]) -> str:
+    rate = float(rate_info["rate"])
+    unit = str(rate_info["unit"])
+    if department == TP_DEPARTMENT and category in TP_COST_BASED_CATEGORIES:
+        return f"Development rate: {money(rate)} per unit; scrutiny charge: {SCRUTINY_RATE:.1%} of estimated cost"
+    if unit == "percentage_of_final_cost":
+        return f"Charge: {rate:.2%} of declared final structural cost"
+    if unit == "market_value":
+        return f"Charge: {rate:.2%} of premium valuation"
+    suffix = "chargeable unit" if unit == "qty_based" else "item"
+    return f"Rate: {money(rate)} per {suffix}"
+
+
+def require_authentication() -> None:
+    if st.session_state.get("authenticated", False):
         return
 
-    k1, k2, k3 = st.columns(3, gap="medium")
-    k1.markdown(f'<div class="kpi-tile"><div class="kpi-label">Total Applications</div><div class="kpi-value">{len(df_filtered):,}</div><div class="kpi-sub">In selected view</div></div>', unsafe_allow_html=True)
-    k2.markdown(f'<div class="kpi-tile"><div class="kpi-label">Total Fees Collected</div><div class="kpi-value" style="font-size:1.2rem;">MK {df_filtered["Total Fee (MK)"].sum():,.0f}</div><div class="kpi-sub">Cumulative revenue</div></div>', unsafe_allow_html=True)
-    k3.markdown(f'<div class="kpi-tile"><div class="kpi-label">Average Fee</div><div class="kpi-value" style="font-size:1.2rem;">MK {df_filtered["Total Fee (MK)"].mean():,.0f}</div><div class="kpi-sub">Per application</div></div>', unsafe_allow_html=True)
-    
-    st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    st.markdown("#### Submission Trends")
-    time_frame = st.radio("Group by:", ["Weekly", "Monthly", "Quarterly"], horizontal=True, key="trend_group")
-    
-    df_chart = df_filtered.copy()
-    df_chart["Date Received"] = pd.to_datetime(df_chart["Date Received"], errors="coerce")
-    df_chart = df_chart.dropna(subset=["Date Received"])
-    
-    if not df_chart.empty:
-        if time_frame == "Weekly": period_format, pd_freq = "%d-%m-%Y", "W"
-        elif time_frame == "Monthly": period_format, pd_freq = "%b %Y", "M"
-        else: period_format, pd_freq = "Q", "Q"
-        
-        df_chart["Period_Sort"] = df_chart["Date Received"].dt.to_period(pd_freq).dt.start_time
-        df_chart["Period"] = df_chart["Date Received"].dt.to_period(pd_freq).astype(str) if pd_freq == "Q" else df_chart["Period_Sort"].dt.strftime(period_format)
-        df_chart = df_chart.sort_values("Period_Sort")
-        summary = df_chart.groupby(["Period", "Category"], sort=False).size().reset_index(name="Submissions Count")
-        
-        col1, col2 = st.columns([1, 1], gap="medium")
-        with col1:
-            fig_trend = px.bar(summary, x="Period", y="Submissions Count", color="Category", title=f"Volume — {time_frame} View", barmode="stack", height=400)
-            fig_trend.update_xaxes(type="category", tickangle=-35)
-            fig_trend.update_layout(plot_bgcolor="white", paper_bgcolor="white", font_color="#1A202C")
-            st.plotly_chart(fig_trend, use_container_width=True)
-        with col2:
-            pie_data = df_chart.groupby("Category").size().reset_index(name="Total Applications")
-            pie_data["Label"] = pie_data["Category"].str.replace(r"^\d+\.\s*", "", regex=True)
-            fig_share = px.pie(pie_data, names="Label", values="Total Applications", title="Share by Category", hole=0.35, height=400)
-            fig_share.update_layout(plot_bgcolor="white", paper_bgcolor="white", font_color="#1A202C")
-            st.plotly_chart(fig_share, use_container_width=True)
+    _, login_column, _ = st.columns((1, 1.4, 1))
+    with login_column:
+        st.title("Registry sign in")
+        st.caption("Authorised Town Planning and Estates staff only")
+        with st.form("authentication_form"):
+            candidate = st.text_input("Internal access password", type="password")
+            submitted = st.form_submit_button("Sign in", use_container_width=True)
+        if submitted:
+            try:
+                expected = str(st.secrets["auth"]["password"])
+            except (KeyError, FileNotFoundError):
+                expected = ""
+            if not expected:
+                st.error("Authentication is not configured. Contact the system administrator.")
+            elif candidate and hmac.compare_digest(candidate, expected):
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("The password is not valid.")
+    st.stop()
 
-        st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-        st.markdown("#### 🧮 Volume Matrix (Number of Applications)")
-        vol_matrix = pd.crosstab(df_chart["Category"], df_chart["Period"])
-        ordered_cols = [col for col in df_chart["Period"].unique() if col in vol_matrix.columns]
-        vol_matrix = vol_matrix[ordered_cols]
-        vol_matrix["Total"] = vol_matrix.sum(axis=1)
-        vol_matrix.loc["Grand Total"] = vol_matrix.sum(axis=0)
-        styled_vol = vol_matrix.style.background_gradient(cmap="Blues", axis=None, subset=(vol_matrix.index[:-1], vol_matrix.columns[:-1])).format("{:,.0f}")
-        st.dataframe(styled_vol, use_container_width=True)
-        
-        st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-        st.markdown("#### Revenue Matrix (Amount Collected)")
-        rev_matrix = pd.crosstab(index=df_chart["Category"], columns=df_chart["Period"], values=df_chart["Total Fee (MK)"], aggfunc="sum").fillna(0)
-        rev_matrix = rev_matrix[ordered_cols]
-        rev_matrix["Total"] = rev_matrix.sum(axis=1)
-        rev_matrix.loc["Grand Total"] = rev_matrix.sum(axis=0)
-        styled_rev = rev_matrix.style.background_gradient(cmap="Blues", axis=None, subset=(rev_matrix.index[:-1], rev_matrix.columns[:-1])).format("{:,.2f}")
-        st.dataframe(styled_rev, use_container_width=True)
-        
+
+def render_header() -> None:
+    st.markdown(
+        """
+        <section class="portal-header">
+            <h1>Department of Town Planning and Estates Services</h1>
+            <p>Charges review 2026/2027 · Effective rates registry</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_calculator() -> None:
+    st.header("Fee calculator")
+    department = st.radio(
+        "Department", (TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="calculator_department"
+    )
+    table = get_rate_table(department)
+    left, right = st.columns((1.05, 0.95), gap="large")
+
+    with left:
+        category, development_type, rate_info = sync_rate_selection(
+            table, "calculator_category", "calculator_development_type"
+        )
+        st.caption(rate_description(department, category, rate_info))
+        quantity, premium = render_quantity_input(rate_info, "calculator", allow_geometry=True)
+        add_on_total = 0.0
+        selected_add_ons: list[str] = []
+        if department == TP_DEPARTMENT:
+            st.subheader("Optional combined fees")
+            selected_add_ons, add_on_total = render_tp_add_ons(
+                category, development_type, "calculator_add_ons"
+            )
+
+    estimated_cost, base_fee = calculate_base_fee(department, category, rate_info, quantity, premium)
+    total_due = base_fee + add_on_total
+
+    with right:
+        st.subheader("Assessment")
+        st.write(f"**Category:** {category}")
+        st.write(f"**Development type:** {development_type}")
+        if estimated_cost:
+            st.metric("Estimated cost / valuation", money(estimated_cost))
+        metric_1, metric_2 = st.columns(2)
+        metric_1.metric("Base fee", money(base_fee))
+        metric_2.metric("Additional fees", money(add_on_total))
+        st.metric("Total fee payable", money(total_due))
+        if selected_add_ons:
+            st.caption(f"Includes {len(selected_add_ons)} selected additional fee(s).")
+
+
+def reset_intake_form() -> None:
+    prefixes = ("intake_",)
+    for key in list(st.session_state):
+        if key.startswith(prefixes):
+            del st.session_state[key]
+
+
+def render_intake() -> None:
+    st.header("New application intake")
+    st.caption("Record the assessed charge and the actual amount received separately. This supports partial payments.")
+
+    department = st.radio(
+        "Department", (TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="intake_department"
+    )
+    table = get_rate_table(department)
+    first_column, second_column = st.columns(2, gap="large")
+    with first_column:
+        application_id = st.text_input(
+            "Application / file ID", placeholder="e.g. BCC/TP/2026/250", key="intake_application_id"
+        ).strip().upper()
+        applicant_name = st.text_input("Applicant name / developer entity", key="intake_applicant").strip()
+        received_date = st.date_input("Date received", value=date.today(), key="intake_received_date")
+    with second_column:
+        plot_number = st.text_input("Plot number / parcel ID", key="intake_plot").strip()
+        category, development_type, rate_info = sync_rate_selection(
+            table, "intake_category", "intake_development_type"
+        )
+
+    st.subheader("Assessment and receipt")
+    assessment_column, receipt_column = st.columns(2, gap="large")
+    with assessment_column:
+        st.caption(rate_description(department, category, rate_info))
+        quantity, premium = render_quantity_input(rate_info, "intake_measurement", allow_geometry=False)
+        add_on_total = 0.0
+        selected_add_ons: list[str] = []
+        if department == TP_DEPARTMENT:
+            selected_add_ons, add_on_total = render_tp_add_ons(category, development_type, "intake_add_ons")
+
+    estimated_cost, base_fee = calculate_base_fee(department, category, rate_info, quantity, premium)
+    assessed_total = base_fee + add_on_total
+    with receipt_column:
+        st.metric("Calculated fee due", money(assessed_total))
+        amount_received = st.number_input(
+            "Amount received on receipt (MK)", min_value=0.0, value=assessed_total, step=5_000.0, key="intake_received_amount"
+        )
+        balance = assessed_total - amount_received
+        if balance > 0:
+            st.warning(f"Outstanding balance: {money(balance)}")
+        elif balance < 0:
+            st.info(f"Overpayment to review: {money(abs(balance))}")
+        else:
+            st.success("Receipt matches the calculated fee.")
+        if estimated_cost:
+            st.caption(f"Estimated cost / valuation: {money(estimated_cost)}")
+
+    action_column, clear_column = st.columns(2)
+    submit = action_column.button("Add application to registry", type="primary", use_container_width=True)
+    clear_column.button("Clear form", use_container_width=True, on_click=reset_intake_form)
+
+    if not submit:
+        return
+
+    errors: list[str] = []
+    if not application_id:
+        errors.append("Application / file ID is required.")
+    if not applicant_name:
+        errors.append("Applicant name is required.")
+    if not plot_number:
+        errors.append("Plot number / parcel ID is required.")
+    if amount_received <= 0:
+        errors.append("Amount received must be greater than zero.")
+    if errors:
+        for error in errors:
+            st.error(error)
+        return
+
+    fresh_registry, read_error = read_registry_uncached()
+    if read_error:
+        st.error(read_error)
+        return
+    existing_ids = fresh_registry[APPLICATION_ID].str.upper()
+    if application_id in set(existing_ids):
+        st.error("That application / file ID already exists. Use a unique ID or update the existing record.")
+        return
+
+    new_row = {
+        APPLICATION_ID: application_id,
+        DATE_RECEIVED: pd.Timestamp(received_date),
+        APPLICANT: applicant_name,
+        PLOT_NUMBER: plot_number,
+        DEPARTMENT: department,
+        CATEGORY: category,
+        DEVELOPMENT_TYPE: development_type,
+        DIMENSION: round(float(quantity), 2),
+        ESTIMATED_COST: round(estimated_cost, 2),
+        CALCULATED_FEE: round(assessed_total, 2),
+        AMOUNT_RECEIVED: round(float(amount_received), 2),
+        BALANCE: round(balance, 2),
+        WORKFLOW: "",
+        COMPLETED_STEPS: "[]",
+    }
+    try:
+        write_registry(pd.concat((fresh_registry, pd.DataFrame([new_row])), ignore_index=True))
+    except Exception:
+        LOGGER.exception("Registry write failed during intake")
+        st.error("The registry could not be updated. No confirmation was received from Google Sheets.")
+        return
+
+    reset_intake_form()
+    st.success(f"Application {application_id} was added to the registry.")
+
+
+def period_details(series: pd.Series, grouping: str) -> tuple[pd.Series, pd.Series]:
+    frequencies = {"Weekly": "W-SUN", "Monthly": "M", "Quarterly": "Q"}
+    period_start = series.dt.to_period(frequencies[grouping]).dt.start_time
+    if grouping == "Weekly":
+        labels = period_start.dt.strftime("Week of %d %b %Y")
+    elif grouping == "Monthly":
+        labels = period_start.dt.strftime("%b %Y")
     else:
-        st.info("📭 No valid dates found in the data to process time-series trends.")
-        
-    st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    st.markdown("#### 📋 Application Registry")
-    search_query = st.text_input("Search registry:", placeholder="Filter by Plot #, Applicant name, or File ID…", label_visibility="collapsed")
-    
-    df_display = df_filtered.copy()
-    if search_query.strip():
-        q = search_query.strip().lower()
-        mask = df_display.apply(lambda row: row.astype(str).str.lower().str.contains(q).any(), axis=1)
-        df_display = df_display[mask]
-        
-    df_display_sorted = df_display.sort_values(by="Date Received", ascending=False)
-    
+        labels = series.dt.to_period("Q").astype(str)
+    return period_start, labels
+
+
+def render_analytics(df: pd.DataFrame) -> None:
+    st.header("Submission analytics")
+    department_filter = st.radio(
+        "View data for", ("All departments", TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="analytics_department"
+    )
+    filtered = df.copy()
+    if department_filter != "All departments":
+        filtered = filtered.loc[filtered[DEPARTMENT] == department_filter].copy()
+
+    if filtered.empty:
+        st.info("No applications match this selection.")
+        return
+
+    kpi_1, kpi_2, kpi_3, kpi_4 = st.columns(4)
+    kpi_1.metric("Applications", f"{len(filtered):,}")
+    kpi_2.metric("Amount received", money(filtered[AMOUNT_RECEIVED].sum()))
+    kpi_3.metric("Assessed fees", money(filtered[CALCULATED_FEE].sum()))
+    kpi_4.metric("Outstanding balance", money(filtered[BALANCE].clip(lower=0).sum()))
+
+    chart_data = filtered.dropna(subset=[DATE_RECEIVED]).copy()
+    if not chart_data.empty:
+        st.subheader("Submission trends")
+        grouping = st.radio("Group by", ("Weekly", "Monthly", "Quarterly"), horizontal=True, key="analytics_grouping")
+        chart_data["Period start"], chart_data["Period"] = period_details(chart_data[DATE_RECEIVED], grouping)
+        chart_data[CATEGORY] = chart_data[CATEGORY].replace("", "Uncategorised")
+        periods = (
+            chart_data[["Period", "Period start"]]
+            .drop_duplicates()
+            .sort_values("Period start")["Period"]
+            .tolist()
+        )
+        volume = (
+            chart_data.groupby(["Period", CATEGORY], as_index=False)
+            .size()
+            .rename(columns={"size": "Submissions"})
+        )
+        chart_left, chart_right = st.columns(2, gap="large")
+        with chart_left:
+            trend = px.bar(
+                volume,
+                x="Period",
+                y="Submissions",
+                color=CATEGORY,
+                barmode="stack",
+                category_orders={"Period": periods},
+                title=f"Application volume — {grouping.lower()} view",
+            )
+            trend.update_layout(legend_title_text="Category", margin=dict(l=10, r=10, t=50, b=10))
+            st.plotly_chart(trend, use_container_width=True)
+        with chart_right:
+            share = chart_data.groupby(CATEGORY, as_index=False).size().rename(columns={"size": "Applications"})
+            pie = px.pie(share, names=CATEGORY, values="Applications", hole=0.35, title="Share by category")
+            pie.update_layout(margin=dict(l=10, r=10, t=50, b=10))
+            st.plotly_chart(pie, use_container_width=True)
+
+        st.subheader("Period matrices")
+        volume_matrix = pd.crosstab(chart_data[CATEGORY], chart_data["Period"]).reindex(columns=periods, fill_value=0)
+        revenue_matrix = (
+            chart_data.pivot_table(
+                index=CATEGORY, columns="Period", values=AMOUNT_RECEIVED, aggfunc="sum", fill_value=0
+            ).reindex(columns=periods, fill_value=0)
+        )
+        for matrix in (volume_matrix, revenue_matrix):
+            matrix["Total"] = matrix.sum(axis=1)
+            matrix.loc["Grand Total"] = matrix.sum(axis=0)
+        matrix_left, matrix_right = st.columns(2, gap="large")
+        with matrix_left:
+            st.caption("Application volume")
+            st.dataframe(volume_matrix.style.format("{:,.0f}"), use_container_width=True)
+        with matrix_right:
+            st.caption("Amount received (MK)")
+            st.dataframe(revenue_matrix.style.format("{:,.2f}"), use_container_width=True)
+    else:
+        st.info("No valid received dates are available for trend analysis.")
+
+    st.subheader("Application registry")
+    query = st.text_input("Search registry", placeholder="File ID, applicant, plot, category …", key="analytics_search")
+    display = filtered.copy()
+    if query.strip():
+        searchable = display[[APPLICATION_ID, APPLICANT, PLOT_NUMBER, CATEGORY, DEVELOPMENT_TYPE]].fillna("").astype(str)
+        matches = searchable.apply(lambda column: column.str.contains(query.strip(), case=False, regex=False)).any(axis=1)
+        display = display.loc[matches].copy()
+    display = display.sort_values(DATE_RECEIVED, ascending=False, na_position="last")
     st.dataframe(
-        df_display_sorted, 
+        display,
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Est. Cost (MK)": st.column_config.NumberColumn(format="MK %.2f"),
-            "Total Fee (MK)": st.column_config.NumberColumn(format="MK %.2f"),
-            "Date Received": st.column_config.DateColumn(format="YYYY-MM-DD")
-        }
+            DATE_RECEIVED: st.column_config.DateColumn("Date received", format="DD/MM/YYYY"),
+            ESTIMATED_COST: st.column_config.NumberColumn(format="MK %.2f"),
+            CALCULATED_FEE: st.column_config.NumberColumn(format="MK %.2f"),
+            AMOUNT_RECEIVED: st.column_config.NumberColumn("Amount received", format="MK %.2f"),
+            BALANCE: st.column_config.NumberColumn(format="MK %.2f"),
+        },
     )
+    export = prepare_for_storage(display).to_csv(index=False).encode("utf-8")
+    st.download_button("Download filtered registry (CSV)", export, "bcc_registry.csv", "text/csv")
 
-# ==============================================================================
-# MODULE 4: PROCESS TRACKING
-# ==============================================================================
-def render_tracker(df):
-    st.markdown("## 🛤️ PROCESS TRACKING")
-    st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    
+
+def decode_completed_steps(value: Any) -> set[str]:
+    """Read the current JSON format and legacy comma-separated cells safely."""
+    text = str(value).strip()
+    if not text or text.lower() in {"nan", "n/a", "none"}:
+        return set()
+    try:
+        decoded = json.loads(text)
+        if isinstance(decoded, list):
+            return {str(step) for step in decoded}
+    except json.JSONDecodeError:
+        pass
+    return {step.strip() for step in text.split(",") if step.strip()}
+
+
+def tracker_key(application_id: str, workflow: str, step_number: int) -> str:
+    digest = hashlib.sha1(f"{application_id}|{workflow}|{step_number}".encode()).hexdigest()[:12]
+    return f"tracker_{digest}"
+
+
+def render_tracker(df: pd.DataFrame) -> None:
+    st.header("Process tracking")
     if df.empty:
-        st.info("⚠️ No records available in the registry to track.")
+        st.info("No records are available in the registry to track.")
         return
-        
-    search_options = (
-        df["Application ID"].astype(str).fillna("") + " | Plot: " + 
-        df["Plot Number"].astype(str).fillna("") + " | " + 
-        df["Applicant Name"].astype(str).fillna("")
-    )
-    
-    selected_record_str = st.selectbox(
-        "🔍 Search and select an Application (Type to filter):",
-        options=search_options.tolist(),
-        index=None,
-        placeholder="Type Application ID, Plot Number, or Applicant Name..."
-    )
-    
-    if selected_record_str:
-        app_id_target = selected_record_str.split(" | ")[0]
-        match_idx = df[df["Application ID"].astype(str) == app_id_target].index
-        
-        if len(match_idx) == 0:
-            st.warning("⚠️ Could not retrieve the selected record.")
-            return
-            
-        record_idx = match_idx[0]
-        record = df.loc[record_idx]
-        st.success(f"✅ **Record Loaded:** {record['Applicant Name']} | **Plot:** {record['Plot Number']}")
-        
-        track_type = st.radio("Select Workflow Process:", ["Lease Application", "Change of Ownership", "Plan Approval"], horizontal=True)
-        
-        if track_type == "Lease Application":
-            steps = ["Confirmation of Estate", "Confirmation of Details", "City Rates Clearance", "Lease Application Fee Paid", "Application Form Submitted", "Property Inspection Completed", "Surveying Executed", "Development Charges Cleared", "Legal Costs Cleared", "Final Signing by Director of Town Planning and Estates Services"]
-        elif track_type == "Plan Approval":
-            steps = ["Submission of Plans", "Payment of Scrutiny Fees", "Technical Screening of Plans", "Town Planning Committee Screening and Approval of Plans", "Preparation of Grants Permissions", "Stamping of the Approved plans", "Signing of the plans and grants permissions by the Director of Town Planning and Estates Services"]
-        else:
-            steps = ["Obtain Letter (Site Office / Deceased Estate)", "Site Verification", "File Check at Civic Offices", "City Rates Clearance", "Clearance Certificate Fee Paid", "Change of Ownership Fee Paid", "Tax Clearance (MRA) Obtained", "Signing by Director of Town Planning and Estates Services", "Signing by Director of Financial Services", "Initial CEO Signature", "Document Preparation", "Final CEO Signature"]
-            
-        saved_steps_str = str(record.get("Completed Steps", ""))
-        saved_steps = saved_steps_str.split(",") if saved_steps_str and saved_steps_str not in ("nan", "N/A") else []
-        
-        st.markdown(f"### Standard Operating Procedure: {track_type}")
-        with st.form("tracker_form"):
-            checked_states = [title for i, title in enumerate(steps, 1) if st.checkbox(f"Step {i}: {title}", value=(title in saved_steps))]
-            if st.form_submit_button("💾 Save Progress to Registry", use_container_width=True):
-                new_steps_str = ",".join(checked_states)
-                try:
-                    df_fresh = conn.read(ttl=0)
-                    fresh_match_idx = df_fresh[df_fresh["Application ID"].astype(str).str.upper() == str(record["Application ID"]).upper()].index
-                    if len(fresh_match_idx) > 0:
-                        df_fresh.at[fresh_match_idx[0], "Completed Steps"] = new_steps_str
-                        df_fresh["Date Received"] = _fmt_date_col(df_fresh["Date Received"])
-                        conn.update(data=df_fresh)
-                        st.cache_data.clear()
-                        st.success("✅ Progress successfully synced to the database!")
-                        st.balloons()
-                        time.sleep(1.5)
-                        st.rerun()
-                    else:
-                        st.error("❌ Sync Error: Record lost. It may have been deleted. Please refresh.")
-                except Exception as e:
-                    st.error(f"❌ Sync Error: Could not write to database. ({e})")
 
-# ── Controller ────────────────────────────────────────────────────────────
-if current_page == "calculator": render_calculator()
-elif current_page == "intake": render_intake(df_bcc)
-elif current_page == "analytics": render_analytics(df_bcc)
-elif current_page == "tracker": render_tracker(df_bcc)
+    options = [
+        f"{row[APPLICATION_ID]} | Plot: {row[PLOT_NUMBER]} | {row[APPLICANT]}"
+        for _, row in df.sort_values(APPLICATION_ID).iterrows()
+    ]
+    selection = st.selectbox(
+        "Find an application", options, index=None, placeholder="Type an application ID, plot number, or applicant name"
+    )
+    if not selection:
+        return
 
-if live_mode and current_page == "analytics":
-    time.sleep(refresh_rate)
-    st.rerun()
+    selected_id = selection.split(" | ", 1)[0]
+    record_matches = df.index[df[APPLICATION_ID].str.upper() == selected_id.upper()]
+    if record_matches.empty:
+        st.warning("The selected record could not be found. Refresh the data and try again.")
+        return
+    record = df.loc[record_matches[0]]
+    st.caption(f"{record[APPLICANT]} · Plot {record[PLOT_NUMBER]}")
+
+    saved_workflow = record[WORKFLOW] if record[WORKFLOW] in WORKFLOWS else "Lease Application"
+    workflow = st.radio(
+        "Workflow",
+        list(WORKFLOWS),
+        index=list(WORKFLOWS).index(saved_workflow),
+        horizontal=True,
+        key=f"workflow_{hashlib.sha1(selected_id.encode()).hexdigest()[:10]}",
+    )
+    steps = WORKFLOWS[workflow]
+    saved_steps = decode_completed_steps(record[COMPLETED_STEPS]) if record[WORKFLOW] == workflow else set()
+    completed = sum(step in saved_steps for step in steps)
+    st.progress(completed / len(steps), text=f"{completed} of {len(steps)} steps completed")
+
+    form_key = f"tracker_form_{hashlib.sha1(f'{selected_id}|{workflow}'.encode()).hexdigest()[:12]}"
+    with st.form(form_key):
+        checked_steps = [
+            step
+            for number, step in enumerate(steps, start=1)
+            if st.checkbox(
+                f"Step {number}: {step}",
+                value=step in saved_steps,
+                key=tracker_key(selected_id, workflow, number),
+            )
+        ]
+        save = st.form_submit_button("Save workflow progress", type="primary", use_container_width=True)
+
+    if not save:
+        return
+
+    fresh_registry, read_error = read_registry_uncached()
+    if read_error:
+        st.error(read_error)
+        return
+    fresh_matches = fresh_registry.index[fresh_registry[APPLICATION_ID].str.upper() == selected_id.upper()]
+    if fresh_matches.empty:
+        st.error("The record was removed before the update could be saved.")
+        return
+
+    fresh_index = fresh_matches[0]
+    fresh_registry.at[fresh_index, WORKFLOW] = workflow
+    fresh_registry.at[fresh_index, COMPLETED_STEPS] = json.dumps(checked_steps, ensure_ascii=False)
+    try:
+        write_registry(fresh_registry)
+    except Exception:
+        LOGGER.exception("Registry write failed during workflow update")
+        st.error("The workflow update could not be saved. Please retry after refreshing data.")
+        return
+    st.success("Workflow progress was saved.")
+
+
+def render_sidebar() -> tuple[str, bool, int]:
+    st.sidebar.title("BCC portal")
+    page_labels = {
+        "Fee calculator": "calculator",
+        "New application intake": "intake",
+        "Submission analytics": "analytics",
+        "Process tracking": "tracker",
+    }
+    page_label = st.sidebar.radio("Navigate to", list(page_labels), key="navigation")
+    st.sidebar.divider()
+    auto_refresh = st.sidebar.toggle("Auto-refresh analytics", value=False)
+    refresh_seconds = 30
+    if auto_refresh:
+        refresh_seconds = st.sidebar.slider("Refresh interval (seconds)", 15, 120, 30, step=15)
+    if st.sidebar.button("Refresh data now", use_container_width=True):
+        load_registry.clear()
+        st.rerun()
+    st.sidebar.divider()
+    if st.sidebar.button("Sign out", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
+    st.sidebar.caption("Blantyre City Council · Town Planning & Estates")
+    return page_labels[page_label], auto_refresh, refresh_seconds
+
+
+def render_auto_refreshing_analytics(refresh_seconds: int) -> None:
+    """Use Streamlit fragments when installed; never block the server with sleep."""
+    fragment = getattr(st, "fragment", None)
+    if fragment is None:
+        st.info("Automatic refresh requires Streamlit 1.37 or later. Use 'Refresh data now' in the sidebar.")
+        registry, error = load_registry()
+        if error:
+            st.error(error)
+        render_analytics(registry)
+        return
+
+    @fragment(run_every=f"{refresh_seconds}s")
+    def analytics_fragment() -> None:
+        registry, error = load_registry()
+        if error:
+            st.error(error)
+        render_analytics(registry)
+
+    analytics_fragment()
+
+
+def main() -> None:
+    setup_page()
+    require_authentication()
+    render_header()
+    current_page, auto_refresh, refresh_seconds = render_sidebar()
+
+    if current_page == "calculator":
+        render_calculator()
+    elif current_page == "intake":
+        render_intake()
+    elif current_page == "analytics" and auto_refresh:
+        render_auto_refreshing_analytics(refresh_seconds)
+    else:
+        registry, error = load_registry()
+        if error:
+            st.error(error)
+        if current_page == "analytics":
+            render_analytics(registry)
+        elif current_page == "tracker":
+            render_tracker(registry)
+
+
+if __name__ == "__main__":
+    main()
