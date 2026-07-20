@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import html
 import json
 import logging
 import math
@@ -237,6 +238,21 @@ def setup_page() -> None:
         .stApp { background: #f4f6fa; }
         [data-testid="stSidebar"] { background: #1e65b5; }
         [data-testid="stSidebar"] * { color: #ffffff; }
+        [data-testid="stSidebar"] div.stButton > button {
+            min-height: 2.55rem; color: #ffffff !important; background: #174f8d !important;
+            border: 1px solid rgba(255, 255, 255, .62) !important; border-radius: 7px;
+            font-weight: 600;
+        }
+        [data-testid="stSidebar"] div.stButton > button:hover,
+        [data-testid="stSidebar"] div.stButton > button:active,
+        [data-testid="stSidebar"] div.stButton > button:focus {
+            color: #ffffff !important; background: #123b69 !important;
+            border-color: #c49a2a !important; box-shadow: none !important;
+        }
+        [data-testid="stSidebar"] div.stButton > button:focus-visible {
+            outline: 2px solid #c49a2a !important; outline-offset: 2px;
+        }
+        [data-testid="stSidebar"] div.stButton > button * { color: #ffffff !important; }
         .portal-header {
             background: #1e65b5; border-bottom: 4px solid #c49a2a;
             border-radius: 10px; color: white; padding: 1.4rem 1.7rem; margin-bottom: 1.4rem;
@@ -245,6 +261,30 @@ def setup_page() -> None:
         .portal-header p { margin: 0; color: #dbe8f7; }
         div[data-testid="stMetric"] {
             background: white; border: 1px solid #dde3ee; border-radius: 10px; padding: .85rem;
+        }
+        .money-card {
+            width: 100%; min-width: 0; box-sizing: border-box; background: #ffffff;
+            border: 1px solid #dde3ee; border-radius: 10px; padding: .78rem .9rem; margin: .55rem 0;
+        }
+        .money-card--emphasis { background: #1e65b5; border-color: #1e65b5; }
+        .money-card-label {
+            color: #5d6b82; font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+            line-height: 1.25; text-transform: uppercase;
+        }
+        .money-card-value {
+            color: #172b4d; font-size: clamp(.82rem, 1.6vw, 1.15rem); font-weight: 700;
+            font-variant-numeric: tabular-nums; line-height: 1.28; margin-top: .22rem;
+            overflow-wrap: anywhere; word-break: break-word; white-space: normal;
+        }
+        .money-card--emphasis .money-card-label { color: #dbe8f7; }
+        .money-card--emphasis .money-card-value { color: #ffffff; font-size: clamp(.92rem, 1.9vw, 1.3rem); }
+        [data-testid="stNumberInput"] input {
+            font-size: clamp(.82rem, 1.4vw, 1rem) !important; font-variant-numeric: tabular-nums;
+        }
+        @media (max-width: 900px) {
+            .portal-header { padding: 1rem 1.1rem; }
+            .portal-header h1 { font-size: 1.18rem; }
+            .money-card { padding: .68rem .75rem; }
         }
         </style>
         """,
@@ -342,6 +382,16 @@ def write_registry(df: pd.DataFrame) -> None:
 
 def money(value: float) -> str:
     return f"MK {value:,.2f}"
+
+
+def render_money_card(label: str, value: float, *, emphasis: bool = False) -> None:
+    """Render a currency value that wraps instead of becoming an ellipsis."""
+    classes = "money-card money-card--emphasis" if emphasis else "money-card"
+    st.markdown(
+        f'<section class="{classes}"><div class="money-card-label">{html.escape(label)}</div>'
+        f'<div class="money-card-value">{money(value)}</div></section>',
+        unsafe_allow_html=True,
+    )
 
 
 def rate_key(category: str, development_type: str) -> str:
@@ -576,11 +626,10 @@ def render_calculator() -> None:
         st.write(f"**Category:** {category}")
         st.write(f"**Development type:** {development_type}")
         if estimated_cost:
-            st.metric("Estimated cost / valuation", money(estimated_cost))
-        metric_1, metric_2 = st.columns(2)
-        metric_1.metric("Base fee", money(base_fee))
-        metric_2.metric("Additional fees", money(add_on_total))
-        st.metric("Total fee payable", money(total_due))
+            render_money_card("Estimated cost / valuation", estimated_cost)
+        render_money_card("Base fee", base_fee)
+        render_money_card("Additional fees", add_on_total)
+        render_money_card("Total fee payable", total_due, emphasis=True)
         if selected_add_ons:
             st.caption(f"Includes {len(selected_add_ons)} selected additional fee(s).")
 
@@ -626,10 +675,11 @@ def render_intake() -> None:
     estimated_cost, base_fee = calculate_base_fee(department, category, rate_info, quantity, premium)
     assessed_total = base_fee + add_on_total
     with receipt_column:
-        st.metric("Calculated fee due", money(assessed_total))
+        render_money_card("Assessed fee due", assessed_total, emphasis=True)
         amount_received = st.number_input(
             "Amount received on receipt (MK)", min_value=0.0, value=assessed_total, step=5_000.0, key="intake_received_amount"
         )
+        render_money_card("Amount received", amount_received)
         balance = assessed_total - amount_received
         if balance > 0:
             st.warning(f"Outstanding balance: {money(balance)}")
@@ -722,11 +772,13 @@ def render_analytics(df: pd.DataFrame) -> None:
         st.info("No applications match this selection.")
         return
 
-    kpi_1, kpi_2, kpi_3, kpi_4 = st.columns(4)
-    kpi_1.metric("Applications", f"{len(filtered):,}")
-    kpi_2.metric("Amount received", money(filtered[AMOUNT_RECEIVED].sum()))
-    kpi_3.metric("Assessed fees", money(filtered[CALCULATED_FEE].sum()))
-    kpi_4.metric("Outstanding balance", money(filtered[BALANCE].clip(lower=0).sum()))
+    kpi_left, kpi_right = st.columns(2, gap="medium")
+    with kpi_left:
+        st.metric("Applications", f"{len(filtered):,}")
+        render_money_card("Amount received", float(filtered[AMOUNT_RECEIVED].sum()), emphasis=True)
+    with kpi_right:
+        render_money_card("Assessed fees", float(filtered[CALCULATED_FEE].sum()), emphasis=True)
+        render_money_card("Outstanding balance", float(filtered[BALANCE].clip(lower=0).sum()))
 
     chart_data = filtered.dropna(subset=[DATE_RECEIVED]).copy()
     if not chart_data.empty:
