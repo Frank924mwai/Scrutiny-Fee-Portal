@@ -264,7 +264,8 @@ def setup_page() -> None:
         }
         .money-card {
             width: 100%; min-width: 0; box-sizing: border-box; background: #ffffff;
-            border: 1px solid #dde3ee; border-radius: 10px; padding: .78rem .9rem; margin: .55rem 0;
+            min-height: 5.35rem; border: 1px solid #dde3ee; border-radius: 10px;
+            padding: .78rem .9rem; margin: .55rem 0;
         }
         .money-card--emphasis { background: #1e65b5; border-color: #1e65b5; }
         .money-card-label {
@@ -384,14 +385,19 @@ def money(value: float) -> str:
     return f"MK {value:,.2f}"
 
 
-def render_money_card(label: str, value: float, *, emphasis: bool = False) -> None:
-    """Render a currency value that wraps instead of becoming an ellipsis."""
+def render_value_card(label: str, value: str, *, emphasis: bool = False) -> None:
+    """Render a responsive summary value that wraps instead of becoming an ellipsis."""
     classes = "money-card money-card--emphasis" if emphasis else "money-card"
     st.markdown(
         f'<section class="{classes}"><div class="money-card-label">{html.escape(label)}</div>'
-        f'<div class="money-card-value">{money(value)}</div></section>',
+        f'<div class="money-card-value">{html.escape(value)}</div></section>',
         unsafe_allow_html=True,
     )
+
+
+def render_money_card(label: str, value: float, *, emphasis: bool = False) -> None:
+    """Render a responsive currency value that wraps instead of becoming an ellipsis."""
+    render_value_card(label, money(value), emphasis=emphasis)
 
 
 def rate_key(category: str, development_type: str) -> str:
@@ -772,12 +778,15 @@ def render_analytics(df: pd.DataFrame) -> None:
         st.info("No applications match this selection.")
         return
 
-    kpi_left, kpi_right = st.columns(2, gap="medium")
-    with kpi_left:
-        st.metric("Applications", f"{len(filtered):,}")
-        render_money_card("Amount received", float(filtered[AMOUNT_RECEIVED].sum()), emphasis=True)
-    with kpi_right:
-        render_money_card("Assessed fees", float(filtered[CALCULATED_FEE].sum()), emphasis=True)
+    top_left, top_right = st.columns(2, gap="medium")
+    with top_left:
+        render_value_card("Applications", f"{len(filtered):,}")
+    with top_right:
+        render_money_card("Assessed fees", float(filtered[CALCULATED_FEE].sum()))
+    bottom_left, bottom_right = st.columns(2, gap="medium")
+    with bottom_left:
+        render_money_card("Amount received", float(filtered[AMOUNT_RECEIVED].sum()))
+    with bottom_right:
         render_money_card("Outstanding balance", float(filtered[BALANCE].clip(lower=0).sum()))
 
     chart_data = filtered.dropna(subset=[DATE_RECEIVED]).copy()
