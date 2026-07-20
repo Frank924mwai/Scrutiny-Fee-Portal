@@ -17,14 +17,23 @@ st.set_page_config(
 # ── Global High-Contrast + Fluid Media Query Breakpoints ───────────────────
 st.markdown("""
 <style>
-    /* ── FORCE LIGHT THEME OVERRIDE (Mobile & Desktop) ── */
+    /* ── IMPORT UNIVERSAL FONT (Forces identical look on Mobile & Desktop) ── */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    /* ── APPLY UNIVERSAL FONT & PREVENT MOBILE SCALING ── */
+    html, body, [class*="st-"], .stApp, p, span, h1, h2, h3, h4, h5, div, input, button, label, table, td, th {
+        font-family: 'Inter', sans-serif !important;
+        -webkit-text-size-adjust: 100% !important; /* Stops iOS/Android from resizing text */
+    }
+
+    /* ── FORCE LIGHT THEME OVERRIDE ── */
     .stApp, .main, header[data-testid="stHeader"] { background-color: #F4F6FA !important; }
     div[data-testid="stMarkdownContainer"] p, div[data-testid="stMarkdownContainer"] span,
     .stSlider label, .stNumberInput label, label[data-testid="stWidgetLabel"] p,
     div[data-testid="stRadio"] label div[data-testid="stMarkdownContainer"] p {
         color: #1A202C !important; font-weight: 500 !important;
     }
-    h1, h2, h3, h4, h5 { color: #1E65B5 !important; }
+    h1, h2, h3, h4, h5 { color: #1E65B5 !important; font-weight: 700 !important; }
     
     :root {
         --navy: #1E65B5; --gold: #C49A2A; --bg: #F4F6FA; 
@@ -623,7 +632,6 @@ def render_analytics(df):
         
     df_display_sorted = df_display.sort_values(by="Date Received", ascending=False)
     
-    # Leverages Streamlit's native formatting over Pandas .style for faster interactions
     st.dataframe(
         df_display_sorted, 
         use_container_width=True,
@@ -642,13 +650,33 @@ def render_tracker(df):
     st.markdown("## 🛤️ PROCESS TRACKING")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     
-    search_query = st.text_input("🔍 Enter Application ID or Plot Number to load record:", placeholder="e.g., BCC/TP/2026/250")
-    if search_query.strip():
-        q = search_query.strip().lower()
-        match_idx = df[df["Application ID"].astype(str).str.lower().eq(q) | df["Plot Number"].astype(str).str.lower().eq(q)].index
+    if df.empty:
+        st.info("⚠️ No records available in the registry to track.")
+        return
+        
+    # Generate predictive search options (Combines App ID, Plot, and Applicant Name)
+    search_options = (
+        df["Application ID"].astype(str).fillna("") + " | Plot: " + 
+        df["Plot Number"].astype(str).fillna("") + " | " + 
+        df["Applicant Name"].astype(str).fillna("")
+    )
+    
+    # Use selectbox for autocomplete functionality
+    selected_record_str = st.selectbox(
+        "🔍 Search and select an Application (Type to filter):",
+        options=search_options.tolist(),
+        index=None,
+        placeholder="Type Application ID, Plot Number, or Applicant Name..."
+    )
+    
+    if selected_record_str:
+        # Extract the Application ID from the dropdown selection
+        app_id_target = selected_record_str.split(" | ")[0]
+        
+        match_idx = df[df["Application ID"].astype(str) == app_id_target].index
         
         if len(match_idx) == 0:
-            st.warning("⚠️ No matching record found in the registry.")
+            st.warning("⚠️ Could not retrieve the selected record.")
             return
             
         record_idx = match_idx[0]
@@ -697,5 +725,4 @@ elif current_page == "tracker": render_tracker(df_bcc)
 
 if live_mode and current_page == "analytics":
     time.sleep(refresh_rate)
-    st.rerun()
     st.rerun()
