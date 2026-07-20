@@ -811,12 +811,15 @@ def render_analytics(df: pd.DataFrame) -> None:
         grouping = st.radio("Group by", ("Weekly", "Monthly", "Quarterly"), horizontal=True, key="analytics_grouping")
         chart_data["Period start"], chart_data["Period"] = period_details(chart_data[DATE_RECEIVED], grouping)
         chart_data[CATEGORY] = chart_data[CATEGORY].replace("", "Uncategorised")
-        periods = (
+        chronological_periods = (
             chart_data[["Period", "Period start"]]
             .drop_duplicates()
             .sort_values("Period start")["Period"]
             .tolist()
         )
+        # Charts read left-to-right over time, while wide tables should open on
+        # the newest period instead of hiding it beyond the horizontal scroll.
+        matrix_periods = list(reversed(chronological_periods))
         volume = (
             chart_data.groupby(["Period", CATEGORY], as_index=False)
             .size()
@@ -830,7 +833,7 @@ def render_analytics(df: pd.DataFrame) -> None:
                 y="Submissions",
                 color=CATEGORY,
                 barmode="stack",
-                category_orders={"Period": periods},
+                category_orders={"Period": chronological_periods},
                 title=f"Application volume — {grouping.lower()} view",
             )
             trend.update_layout(legend_title_text="Category", margin=dict(l=10, r=10, t=50, b=10))
@@ -842,21 +845,24 @@ def render_analytics(df: pd.DataFrame) -> None:
             st.plotly_chart(pie, use_container_width=True)
 
         st.subheader("Period matrices")
-        volume_matrix = pd.crosstab(chart_data[CATEGORY], chart_data["Period"]).reindex(columns=periods, fill_value=0)
+        volume_matrix = (
+            pd.crosstab(chart_data[CATEGORY], chart_data["Period"])
+            .reindex(columns=matrix_periods, fill_value=0)
+        )
         revenue_matrix = (
             chart_data.pivot_table(
                 index=CATEGORY, columns="Period", values=AMOUNT_RECEIVED, aggfunc="sum", fill_value=0
-            ).reindex(columns=periods, fill_value=0)
+            ).reindex(columns=matrix_periods, fill_value=0)
         )
         for matrix in (volume_matrix, revenue_matrix):
             matrix["Total"] = matrix.sum(axis=1)
             matrix.loc["Grand Total"] = matrix.sum(axis=0)
         matrix_left, matrix_right = st.columns(2, gap="large")
         with matrix_left:
-            st.caption("Application volume")
+            st.caption("Application volume · most recent period first")
             st.dataframe(volume_matrix.style.format("{:,.0f}"), use_container_width=True)
         with matrix_right:
-            st.caption("Amount received (MK)")
+            st.caption("Amount received (MK) · most recent period first")
             st.dataframe(revenue_matrix.style.format("{:,.2f}"), use_container_width=True)
     else:
         st.info("No valid received dates are available for trend analysis.")
