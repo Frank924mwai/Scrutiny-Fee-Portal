@@ -480,7 +480,6 @@ def render_intake(df):
     st.markdown("## 📥 NEW APPLICATION INTAKE")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     
-    # Safely clear widget state keys *before* widgets are instantiated
     if st.session_state.get("clear_intake_flag", False):
         st.session_state["intake_app_id"] = ""
         st.session_state["intake_applicant"] = ""
@@ -634,6 +633,28 @@ def render_analytics(df):
             fig_share.update_layout(plot_bgcolor="white", paper_bgcolor="white", font_color="#1A202C")
             st.plotly_chart(fig_share, use_container_width=True)
 
+        st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
+        st.markdown("#### 🧮 Volume Matrix (Number of Applications)")
+        vol_matrix = pd.crosstab(df_chart["Category"], df_chart["Period"])
+        ordered_cols = [col for col in df_chart["Period"].unique() if col in vol_matrix.columns]
+        vol_matrix = vol_matrix[ordered_cols]
+        vol_matrix["Total"] = vol_matrix.sum(axis=1)
+        vol_matrix.loc["Grand Total"] = vol_matrix.sum(axis=0)
+        styled_vol = vol_matrix.style.background_gradient(cmap="Blues", axis=None, subset=(vol_matrix.index[:-1], vol_matrix.columns[:-1])).format("{:,.0f}")
+        st.dataframe(styled_vol, use_container_width=True)
+        
+        st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
+        st.markdown("#### Revenue Matrix (Amount Collected)")
+        rev_matrix = pd.crosstab(index=df_chart["Category"], columns=df_chart["Period"], values=df_chart["Total Fee (MK)"], aggfunc="sum").fillna(0)
+        rev_matrix = rev_matrix[ordered_cols]
+        rev_matrix["Total"] = rev_matrix.sum(axis=1)
+        rev_matrix.loc["Grand Total"] = rev_matrix.sum(axis=0)
+        styled_rev = rev_matrix.style.background_gradient(cmap="Blues", axis=None, subset=(rev_matrix.index[:-1], rev_matrix.columns[:-1])).format("{:,.2f}")
+        st.dataframe(styled_rev, use_container_width=True)
+        
+    else:
+        st.info("📭 No valid dates found in the data to process time-series trends.")
+        
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     st.markdown("#### 📋 Application Registry")
     search_query = st.text_input("Search registry:", placeholder="Filter by Plot #, Applicant name, or File ID…", label_visibility="collapsed")
