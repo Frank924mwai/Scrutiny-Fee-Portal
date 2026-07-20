@@ -330,10 +330,10 @@ df_bcc = load_data()
 st.sidebar.markdown("### 🏛 BCC PORTAL")
 st.sidebar.markdown("---")
 PAGE_MAP = {
-    "🧮 Fee Calculator":        "calculator",
-    "📥 New Application Intake": "intake",
-    "📊 Submission Analytics":   "analytics",
-    "🛤️ Process Tracking":       "tracker",
+    "Fee Calculator":        "calculator",
+    "New Application Intake": "intake",
+    "Submission Analytics":   "analytics",
+    "Process Tracking":       "tracker",
 }
 selected_label = st.sidebar.radio("Navigate to:", list(PAGE_MAP.keys()), key="sidebar_nav")
 current_page = PAGE_MAP[selected_label]
@@ -343,7 +343,7 @@ if st.session_state.get("prev_page") != current_page:
     st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### ⚙️ DASHBOARD CONTROLS")
+st.sidebar.markdown("### DASHBOARD CONTROLS")
 live_mode = st.sidebar.toggle("🔄 Enable Real-Time Live View", value=False)
 if live_mode:
     refresh_rate = st.sidebar.slider("Refresh Interval (seconds)", 5, 60, 10)
@@ -358,7 +358,7 @@ st.sidebar.caption("Blantyre City Council · Town Planning & Estates")
 # MODULE 1: FEE CALCULATOR
 # ==============================================================================
 def render_calculator():
-    st.markdown("## 🧮 FEE CALCULATOR")
+    st.markdown("## FEE CALCULATOR")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     
     dept_choice = st.radio("Select Department Parameter", ["Town Planning (Scrutiny)", "Estates Services"], horizontal=True, key="calc_dept")
@@ -379,7 +379,7 @@ def render_calculator():
             
             if unit_type == "sqm":
                 st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-                st.markdown('<div class="card-title">📐 Area Determination Method</div>', unsafe_allow_html=True)
+                st.markdown('<div class="card-title"> Area Determination Method</div>', unsafe_allow_html=True)
                 input_method = st.radio("Entry format:", ["Enter Total Area Manually", "Calculate Using Geometric Shapes"], horizontal=True, key="calc_method")
                 if input_method == "Enter Total Area Manually":
                     input_val = st.number_input("Total Built-up Area (Square Meters)", min_value=0.0, value=100.0, step=10.0, key="calc_man_sqm")
@@ -411,7 +411,7 @@ def render_calculator():
             addon_accumulated = 0.0
             if dept_choice == "Town Planning (Scrutiny)":
                 with st.container(border=True):
-                    st.markdown('<div class="card-title">📦 Combine Additional Fees (Optional)</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="card-title">Combine Additional Fees (Optional)</div>', unsafe_allow_html=True)
                     show_app_checkbox = not (category == "Advertising" and subcategory == "Application Fee")
                     if st.checkbox("Include Base App Fee (MK 15,000)", value=show_app_checkbox, disabled=not show_app_checkbox):
                         addon_accumulated += BCC_RATES["Advertising"]["Application Fee"]["rate"]
@@ -477,7 +477,7 @@ def render_calculator():
 # MODULE 2: NEW APPLICATION INTAKE
 # ==============================================================================
 def render_intake(df):
-    st.markdown("## 📥 NEW APPLICATION INTAKE")
+    st.markdown("## NEW APPLICATION INTAKE")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     
     def clear_intake_data():
@@ -535,8 +535,8 @@ def render_intake(df):
             
         st.markdown("<br>", unsafe_allow_html=True)
         btn_col1, btn_col2 = st.columns(2)
-        submit_btn = btn_col1.button("📄 Append Entry to Registry", use_container_width=True)
-        btn_col2.button("🧹 Clear Data", use_container_width=True, on_click=clear_intake_data)
+        submit_btn = btn_col1.button("Append Entry to Registry", use_container_width=True)
+        btn_col2.button("Clear Data", use_container_width=True, on_click=clear_intake_data)
             
         if submit_btn:
             errors = [e for e, v in [("Application ID is required.", app_id), ("Applicant Name required.", applicant_name), ("Plot Number required.", plot_number)] if not v.strip()]
@@ -580,7 +580,7 @@ def render_intake(df):
 # MODULE 3: SUBMISSION ANALYTICS
 # ==============================================================================
 def render_analytics(df):
-    st.markdown("## 📊 SUBMISSION ANALYTICS")
+    st.markdown("## SUBMISSION ANALYTICS")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     
     view_filter = st.radio("View Data For:", ["All Departments", "Town Planning (Scrutiny)", "Estates Services"], horizontal=True)
@@ -589,7 +589,7 @@ def render_analytics(df):
         df_filtered = df_filtered[df_filtered["Department"] == view_filter]
         
     if df_filtered.empty:
-        st.info("📭 No applications on record for this selection.")
+        st.info("No applications on record for this selection.")
         return
 
     k1, k2, k3 = st.columns(3, gap="medium")
@@ -629,7 +629,7 @@ def render_analytics(df):
             st.plotly_chart(fig_share, use_container_width=True)
 
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
-    st.markdown("#### 📋 Application Registry")
+    st.markdown("#### Application Registry")
     search_query = st.text_input("Search registry:", placeholder="Filter by Plot #, Applicant name, or File ID…", label_visibility="collapsed")
     
     df_display = df_filtered.copy()
@@ -655,7 +655,7 @@ def render_analytics(df):
 # MODULE 4: PROCESS TRACKING
 # ==============================================================================
 def render_tracker(df):
-    st.markdown("## 🛤️ PROCESS TRACKING")
+    st.markdown("## PROCESS TRACKING")
     st.markdown("<hr class='bcc-divider'>", unsafe_allow_html=True)
     
     if df.empty:
@@ -706,7 +706,7 @@ def render_tracker(df):
         st.markdown(f"### Standard Operating Procedure: {track_type}")
         with st.form("tracker_form"):
             checked_states = [title for i, title in enumerate(steps, 1) if st.checkbox(f"Step {i}: {title}", value=(title in saved_steps))]
-            if st.form_submit_button("💾 Save Progress to Registry", use_container_width=True):
+            if st.form_submit_button("Save Progress to Registry", use_container_width=True):
                 new_steps_str = ",".join(checked_states)
                 try:
                     df_fresh = conn.read(ttl=0)
