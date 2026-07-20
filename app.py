@@ -570,7 +570,7 @@ def require_authentication() -> None:
 
     _, login_column, _ = st.columns((1, 1.4, 1))
     with login_column:
-        st.title("Registry sign in")
+        st.title("Enter Password")
         st.caption("Authorised Town Planning and Estates staff only")
         with st.form("authentication_form"):
             candidate = st.text_input("Internal access password", type="password")
