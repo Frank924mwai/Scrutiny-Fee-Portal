@@ -749,7 +749,7 @@ def render_intake() -> None:
         DEPARTMENT: department,
         CATEGORY: category,
         DEVELOPMENT_TYPE: development_type,
-        DIMENSION: round(float(quantity), 2),
+        DIMENSION: round(float(quantity), 3),
         ESTIMATED_COST: round(estimated_cost, 2),
         CALCULATED_FEE: round(assessed_total, 2),
         AMOUNT_RECEIVED: round(float(amount_received), 2),
