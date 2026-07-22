@@ -497,7 +497,7 @@ def render_quantity_input(
                 return quantity, premium
 
         quantity = st.number_input(
-            "Built-up area (sqm)", min_value=0.0, value=100.0, step=10.0, key=f"{key_prefix}_sqm"
+            "Built-up area (sqm)", min_value=0.000, value=100.000, step=10.000, key=f"{key_prefix}_sqm"
         )
     elif unit == "linear_meters":
         quantity = st.number_input(
@@ -749,7 +749,7 @@ def render_intake() -> None:
         DEPARTMENT: department,
         CATEGORY: category,
         DEVELOPMENT_TYPE: development_type,
-        DIMENSION: round(float(quantity), 3),
+        DIMENSION: round(float(quantity), 2),
         ESTIMATED_COST: round(estimated_cost, 2),
         CALCULATED_FEE: round(assessed_total, 2),
         AMOUNT_RECEIVED: round(float(amount_received), 2),
