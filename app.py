@@ -30,7 +30,7 @@ from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(
     page_title="BCC Town Planning and Estates Portal",
-    page_icon="🏛️",
+    page_icon="city.png",
     layout="wide",
 )
 
