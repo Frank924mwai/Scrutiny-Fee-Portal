@@ -190,6 +190,7 @@ TP_ADD_ONS = (
     ("Miscellaneous", "Site Plan Certification", "Site plan certification"),
     ("Miscellaneous", "One Surface Car Parking Space", "Surface car parking"),
     ("Miscellaneous", "Sewer Application Fees", "Sewer application fee"),
+    ("Fences", "Security Fence", "Security Fence fee"),
 )
 
 WORKFLOWS: dict[str, list[str]] = {
