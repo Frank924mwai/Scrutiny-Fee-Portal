@@ -352,7 +352,6 @@ def prepare_for_storage(df: pd.DataFrame) -> pd.DataFrame:
         lambda value: value.strftime("%Y-%m-%d") if pd.notna(value) else ""
     )
     for column in NUMERIC_COLUMNS:
-        for column in NUMERIC_COLUMNS:
         if column == DIMENSION:
             output[column] = output[column].round(3)
         else:
