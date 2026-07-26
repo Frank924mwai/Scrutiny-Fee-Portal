@@ -653,23 +653,39 @@ def apply_pending_intake_form_reset() -> bool:
     if not st.session_state.pop("intake_reset_requested", False):
         return False
 
-    # Explicitly overwrite the main intake fields with their default empty/initial values
+    # Explicitly reset every main and measurement field to its default initial value
     st.session_state["intake_application_id"] = ""
     st.session_state["intake_applicant"] = ""
-    st.session_state["intake_plot"] = ""
     st.session_state["intake_received_date"] = date.today()
+    st.session_state["intake_plot"] = ""
     st.session_state["intake_received_amount"] = 0.0
+    st.session_state["intake_measurement_sqm"] = 0.0
+    st.session_state["intake_measurement_linear"] = 0.0
+    st.session_state["intake_measurement_cost"] = 5_000_000.0
+    st.session_state["intake_measurement_premium"] = 1_000_000.0
+    st.session_state["intake_measurement_market_area"] = 1_000.0
+    st.session_state["intake_measurement_quantity"] = 1.0
+    st.session_state["intake_add_ons"] = []
 
-    # Clean up any remaining dynamic/transient intake keys from memory
+    # Clean up any remaining dynamic intake keys from memory
     for key in list(st.session_state):
         if key.startswith("intake_") and key not in {
             "intake_success_message",
+            "intake_department",
+            "intake_category",
+            "intake_development_type",
             "intake_application_id",
             "intake_applicant",
-            "intake_plot",
             "intake_received_date",
+            "intake_plot",
             "intake_received_amount",
-            "intake_department",
+            "intake_measurement_sqm",
+            "intake_measurement_linear",
+            "intake_measurement_cost",
+            "intake_measurement_premium",
+            "intake_measurement_market_area",
+            "intake_measurement_quantity",
+            "intake_add_ons",
         }:
             del st.session_state[key]
             
