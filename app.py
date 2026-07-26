@@ -653,9 +653,17 @@ def apply_pending_intake_form_reset() -> bool:
     if not st.session_state.pop("intake_reset_requested", False):
         return False
 
+    # Force the stubborn text fields to empty strings so the UI updates
+    stubborn_keys = ["intake_application_id", "intake_applicant", "intake_plot"]
+    for key in stubborn_keys:
+        if key in st.session_state:
+            st.session_state[key] = ""
+
+    # Proceed with deleting all intake keys from memory
     for key in list(st.session_state):
         if key.startswith("intake_") and key != "intake_success_message":
             del st.session_state[key]
+            
     return True
 
 
