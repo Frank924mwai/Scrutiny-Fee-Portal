@@ -903,7 +903,7 @@ def render_analytics(df: pd.DataFrame) -> None:
         st.info("No valid received dates are available for trend analysis.")
 
     st.subheader("Application Registry")
-    query = st.text_input("Search registry", placeholder="File ID, applicant, plot, category …", key="analytics_search")
+    query = st.text_input("Search Registry", placeholder="File ID, Applicant, Plot, Category …", key="analytics_search")
     display = filtered.copy()
     if query.strip():
         searchable = display[[APPLICATION_ID, APPLICANT, PLOT_NUMBER, CATEGORY, DEVELOPMENT_TYPE]].fillna("").astype(str)
@@ -923,7 +923,7 @@ def render_analytics(df: pd.DataFrame) -> None:
         },
     )
     export = prepare_for_storage(display).to_csv(index=False).encode("utf-8")
-    st.download_button("Download filtered registry (CSV)", export, "bcc_registry.csv", "text/csv")
+    st.download_button("Download (CSV)", export, "bcc_registry.csv", "text/csv")
 
 
 def decode_completed_steps(value: Any) -> set[str]:
