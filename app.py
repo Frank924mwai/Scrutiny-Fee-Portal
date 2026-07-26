@@ -653,20 +653,28 @@ def apply_pending_intake_form_reset() -> bool:
     if not st.session_state.pop("intake_reset_requested", False):
         return False
 
-    # Force the stubborn text fields to empty strings so the UI updates
-    stubborn_keys = ["application_id", "applicant_name", "received_date", "plot_number"]
-    for key in stubborn_keys:
-        if key in st.session_state:
-            st.session_state[key] = ""
+    # Explicitly overwrite the main intake fields with their default empty/initial values
+    st.session_state["intake_application_id"] = ""
+    st.session_state["intake_applicant"] = ""
+    st.session_state["intake_plot"] = ""
+    st.session_state["intake_received_date"] = date.today()
+    st.session_state["intake_received_amount"] = 0.0
 
-    # Proceed with deleting all intake keys from memory
+    # Clean up any remaining dynamic/transient intake keys from memory
     for key in list(st.session_state):
-        if key.startswith("intake_") and key != "intake_success_message":
+        if key.startswith("intake_") and key not in {
+            "intake_success_message",
+            "intake_application_id",
+            "intake_applicant",
+            "intake_plot",
+            "intake_received_date",
+            "intake_received_amount",
+            "intake_department",
+        }:
             del st.session_state[key]
             
     return True
-
-
+    
 def render_intake() -> None:
     was_reset = apply_pending_intake_form_reset()
     st.header("New Application Intake")
