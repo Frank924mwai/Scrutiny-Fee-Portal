@@ -352,7 +352,11 @@ def prepare_for_storage(df: pd.DataFrame) -> pd.DataFrame:
         lambda value: value.strftime("%Y-%m-%d") if pd.notna(value) else ""
     )
     for column in NUMERIC_COLUMNS:
-        output[column] = output[column].round(2)
+        for column in NUMERIC_COLUMNS:
+        if column == DIMENSION:
+            output[column] = output[column].round(3)
+        else:
+            output[column] = output[column].round(2)
 
     # Preserve any manually managed columns that already exist in the sheet.
     extra_columns = [column for column in df.columns if column not in COLUMNS]
@@ -497,7 +501,7 @@ def render_quantity_input(
                 return quantity, premium
 
         quantity = st.number_input(
-            "Built-up area (sqm)", min_value=0.0, value=100.0, step=10.0, key=f"{key_prefix}_sqm"
+            "Built-up area (sqm)", min_value=0.0, value=100.0, step=10.0, format="%.3f", key=f"{key_prefix}_sqm"
         )
     elif unit == "linear_meters":
         quantity = st.number_input(
@@ -749,7 +753,7 @@ def render_intake() -> None:
         DEPARTMENT: department,
         CATEGORY: category,
         DEVELOPMENT_TYPE: development_type,
-        DIMENSION: round(float(quantity), 2),
+        DIMENSION: round(float(quantity), 3),
         ESTIMATED_COST: round(estimated_cost, 2),
         CALCULATED_FEE: round(assessed_total, 2),
         AMOUNT_RECEIVED: round(float(amount_received), 2),
