@@ -622,7 +622,7 @@ def render_calculator() -> None:
         add_on_total = 0.0
         selected_add_ons: list[str] = []
         if department == TP_DEPARTMENT:
-            st.subheader("Optional combined fees")
+            st.subheader("Optional Combined Fees")
             selected_add_ons, add_on_total = render_tp_add_ons(
                 category, development_type, "calculator_add_ons"
             )
@@ -686,7 +686,7 @@ def render_intake() -> None:
             table, "intake_category", "intake_development_type"
         )
 
-    st.subheader("Assessment and receipt")
+    st.subheader("Assessment and Receipt")
     assessment_column, receipt_column = st.columns(2, gap="large")
     with assessment_column:
         st.caption(rate_description(department, category, rate_info))
@@ -810,7 +810,7 @@ def render_analytics(df: pd.DataFrame) -> None:
 
     chart_data = filtered.dropna(subset=[DATE_RECEIVED]).copy()
     if not chart_data.empty:
-        st.subheader("Submission trends")
+        st.subheader("Submission Trends")
         grouping = st.radio("Group by", ("Weekly", "Monthly", "Quarterly"), horizontal=True, key="analytics_grouping")
         chart_data["Period start"], chart_data["Period"] = period_details(chart_data[DATE_RECEIVED], grouping)
         chart_data[CATEGORY] = chart_data[CATEGORY].replace("", "Uncategorised")
@@ -837,17 +837,17 @@ def render_analytics(df: pd.DataFrame) -> None:
                 color=CATEGORY,
                 barmode="stack",
                 category_orders={"Period": chronological_periods},
-                title=f"Application volume — {grouping.lower()} view",
+                title=f"Application Volume — {grouping.lower()} view",
             )
             trend.update_layout(legend_title_text="Category", margin=dict(l=10, r=10, t=50, b=10))
             st.plotly_chart(trend, use_container_width=True)
         with chart_right:
             share = chart_data.groupby(CATEGORY, as_index=False).size().rename(columns={"size": "Applications"})
-            pie = px.pie(share, names=CATEGORY, values="Applications", hole=0.35, title="Share by category")
+            pie = px.pie(share, names=CATEGORY, values="Applications", hole=0.35, title="Share by Category")
             pie.update_layout(margin=dict(l=10, r=10, t=50, b=10))
             st.plotly_chart(pie, use_container_width=True)
 
-        st.subheader("Period matrices")
+        st.subheader("Period Matrices")
         volume_matrix = (
             pd.crosstab(chart_data[CATEGORY], chart_data["Period"])
             .reindex(columns=matrix_periods, fill_value=0)
@@ -870,7 +870,7 @@ def render_analytics(df: pd.DataFrame) -> None:
     else:
         st.info("No valid received dates are available for trend analysis.")
 
-    st.subheader("Application registry")
+    st.subheader("Application Registry")
     query = st.text_input("Search registry", placeholder="File ID, applicant, plot, category …", key="analytics_search")
     display = filtered.copy()
     if query.strip():
