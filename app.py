@@ -819,7 +819,7 @@ def period_details(series: pd.Series, grouping: str) -> tuple[pd.Series, pd.Seri
 def render_analytics(df: pd.DataFrame) -> None:
     st.header("Submission Analytics")
     department_filter = st.radio(
-        "View Data for", ("All departments", TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="analytics_department"
+        "View Data for", ("All Departments", TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="analytics_department"
     )
     filtered = df.copy()
     if department_filter != "All Departments":
