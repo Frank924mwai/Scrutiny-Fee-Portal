@@ -997,15 +997,15 @@ def render_sidebar() -> tuple[str, bool, int]:
     }
     page_label = st.sidebar.radio("Navigate to", list(page_labels), key="navigation")
     st.sidebar.divider()
-    auto_refresh = st.sidebar.toggle("Auto-refresh analytics", value=False)
+    auto_refresh = st.sidebar.toggle("Auto-Refresh Analytics", value=False)
     refresh_seconds = 30
     if auto_refresh:
-        refresh_seconds = st.sidebar.slider("Refresh interval (seconds)", 15, 120, 30, step=15)
-    if st.sidebar.button("Refresh data now", use_container_width=True):
+        refresh_seconds = st.sidebar.slider("Refresh Interval (Seconds)", 15, 120, 30, step=15)
+    if st.sidebar.button("Refresh Data Now", use_container_width=True):
         load_registry.clear()
         st.rerun()
     st.sidebar.divider()
-    if st.sidebar.button("Sign out", use_container_width=True):
+    if st.sidebar.button("Sign Out", use_container_width=True):
         st.session_state.clear()
         st.rerun()
     st.sidebar.caption("Blantyre City Council · Town Planning & Estates . Created by Geoscientist Frank Chingoka")
