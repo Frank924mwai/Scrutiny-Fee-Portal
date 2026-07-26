@@ -606,7 +606,7 @@ def render_header() -> None:
 
 
 def render_calculator() -> None:
-    st.header("Fee calculator")
+    st.header("Fee Calculator")
     department = st.radio(
         "Department", (TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="calculator_department"
     )
@@ -661,7 +661,7 @@ def apply_pending_intake_form_reset() -> bool:
 
 def render_intake() -> None:
     was_reset = apply_pending_intake_form_reset()
-    st.header("New application intake")
+    st.header("New Application Intake")
     st.caption("Record the assessed charge and the actual amount received separately. This supports partial payments.")
     success_message = st.session_state.pop("intake_success_message", None)
     if success_message:
@@ -785,7 +785,7 @@ def period_details(series: pd.Series, grouping: str) -> tuple[pd.Series, pd.Seri
 
 
 def render_analytics(df: pd.DataFrame) -> None:
-    st.header("Submission analytics")
+    st.header("Submission Analytics")
     department_filter = st.radio(
         "View data for", ("All departments", TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="analytics_department"
     )
@@ -914,7 +914,7 @@ def tracker_key(application_id: str, workflow: str, step_number: int) -> str:
 
 
 def render_tracker(df: pd.DataFrame) -> None:
-    st.header("Process tracking")
+    st.header("Process Tracking")
     if df.empty:
         st.info("No records are available in the registry to track.")
         return
