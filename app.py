@@ -990,10 +990,10 @@ def render_tracker(df: pd.DataFrame) -> None:
 def render_sidebar() -> tuple[str, bool, int]:
     st.sidebar.title("BCC portal")
     page_labels = {
-        "Fee calculator": "calculator",
-        "New application intake": "intake",
-        "Submission analytics": "analytics",
-        "Process tracking": "tracker",
+        "Fee Calculator": "calculator",
+        "New Application Intake": "intake",
+        "Submission Analytics": "analytics",
+        "Process Tracking": "tracker",
     }
     page_label = st.sidebar.radio("Navigate to", list(page_labels), key="navigation")
     st.sidebar.divider()
