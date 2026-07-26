@@ -819,10 +819,10 @@ def period_details(series: pd.Series, grouping: str) -> tuple[pd.Series, pd.Seri
 def render_analytics(df: pd.DataFrame) -> None:
     st.header("Submission Analytics")
     department_filter = st.radio(
-        "View data for", ("All departments", TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="analytics_department"
+        "View Data for", ("All departments", TP_DEPARTMENT, ESTATES_DEPARTMENT), horizontal=True, key="analytics_department"
     )
     filtered = df.copy()
-    if department_filter != "All departments":
+    if department_filter != "All Departments":
         filtered = filtered.loc[filtered[DEPARTMENT] == department_filter].copy()
 
     if filtered.empty:
@@ -894,10 +894,10 @@ def render_analytics(df: pd.DataFrame) -> None:
             matrix.loc["Grand Total"] = matrix.sum(axis=0)
         matrix_left, matrix_right = st.columns(2, gap="large")
         with matrix_left:
-            st.caption("Application volume · most recent period first")
+            st.caption("Application Volume · Most Recent Period First")
             st.dataframe(volume_matrix.style.format("{:,.0f}"), use_container_width=True)
         with matrix_right:
-            st.caption("Amount received (MK) · most recent period first")
+            st.caption("Amount Received (MK) · Most Recent Period First")
             st.dataframe(revenue_matrix.style.format("{:,.2f}"), use_container_width=True)
     else:
         st.info("No valid received dates are available for trend analysis.")
