@@ -500,7 +500,7 @@ def render_quantity_input(
                 return quantity, premium
 
         quantity = st.number_input(
-            "Built-up area (sqm)", min_value=0.0, value=100.0, step=10.0, format="%.3f", key=f"{key_prefix}_sqm"
+            "Built-up area (sqm)", min_value=0.0, value=0.0, step=1.0, format="%.3f", key=f"{key_prefix}_sqm"
         )
     elif unit == "linear_meters":
         quantity = st.number_input(
