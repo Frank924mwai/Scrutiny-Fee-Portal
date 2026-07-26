@@ -1008,7 +1008,7 @@ def render_sidebar() -> tuple[str, bool, int]:
     if st.sidebar.button("Sign out", use_container_width=True):
         st.session_state.clear()
         st.rerun()
-    st.sidebar.caption("Blantyre City Council · Town Planning & Estates")
+    st.sidebar.caption("Blantyre City Council · Town Planning & Estates . Created by Geoscientist Frank Chingoka")
     return page_labels[page_label], auto_refresh, refresh_seconds
 
 
