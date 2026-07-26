@@ -504,7 +504,7 @@ def render_quantity_input(
         )
     elif unit == "linear_meters":
         quantity = st.number_input(
-            "Fence length (metres)", min_value=0.0, value=50.0, step=5.0, key=f"{key_prefix}_linear"
+            "Fence length (metres)", min_value=0.0, value=0.0, step=1.0, key=f"{key_prefix}_linear"
         )
     elif unit == "percentage_of_final_cost":
         quantity = st.number_input(
@@ -988,7 +988,7 @@ def render_tracker(df: pd.DataFrame) -> None:
 
 
 def render_sidebar() -> tuple[str, bool, int]:
-    st.sidebar.title("BCC portal")
+    st.sidebar.title("Planning and Estates Portal")
     page_labels = {
         "Fee Calculator": "calculator",
         "New Application Intake": "intake",
