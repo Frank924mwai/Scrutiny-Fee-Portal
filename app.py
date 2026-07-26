@@ -654,7 +654,7 @@ def apply_pending_intake_form_reset() -> bool:
         return False
 
     # Force the stubborn text fields to empty strings so the UI updates
-    stubborn_keys = ["intake_application_id", "intake_applicant", "intake_plot"]
+    stubborn_keys = ["application_id", "applicant_name", "received_date", "plot_number"]
     for key in stubborn_keys:
         if key in st.session_state:
             st.session_state[key] = ""
